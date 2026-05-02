@@ -39,9 +39,8 @@ Shader "TransparentSights/p0/Reflective/Bumped Specular SMap" {
 	SubShader {
 		Pass {
 			Name "DEPTH_PREPASS"
-			Tags { "LIGHTMODE" = "ForwardBase" "RenderType" = "Transparent" "Queue" = "Transparent" }
+			Tags { "Queue" = "Geometry" }
 			ColorMask 0
-		    Blend SrcAlpha OneMinusSrcAlpha
 			Stencil {
 				Ref [_StencilRef]
 				WriteMask 63
@@ -52,10 +51,7 @@ Shader "TransparentSights/p0/Reflective/Bumped Specular SMap" {
 			CGPROGRAM
 			#pragma vertex vert
 			#pragma fragment frag
-            #pragma multi_compile_fwdbase
-
             #include "UnityCG.cginc"
-            #include "Lighting.cginc"
 
 			float4 vert(float4 vertex : POSITION) : SV_POSITION
 			{
