@@ -25,6 +25,12 @@ using UnityEngine.Video;
 
 namespace SevenBoldPencil.TransparentSights
 {
+    public struct PatchedScope
+    {
+        public string TemplateID;
+        public int TransformInstanceID;
+    }
+
     public struct PatchedScopeRenderers
     {
         public List<PatchedRenderer> MountRenderers;
@@ -68,7 +74,7 @@ namespace SevenBoldPencil.TransparentSights
         private Dictionary<string, bool> TransparentScopes;
         private Dictionary<string, Dictionary<ItemSpecificationPanel, ContextMenuButton>> ScopesItemPanels;
         private Dictionary<int, PatchedScopeRenderers> PatchedScopes;
-        private Option<int> CurrentPatchedScope;
+        private Option<PatchedScope> CurrentPatchedScope;
         private Option<double> LastSaveTime;
 
         private void Awake()
@@ -77,6 +83,7 @@ namespace SevenBoldPencil.TransparentSights
 			LoggerInstance = Logger;
 
             AimingScopeOpacity = Config.Bind<float>("Main", "Aiming Scope Opacity", 0.5f, new ConfigDescription("", new AcceptableValueRange<float>(0f, 1f)));
+            AimingScopeOpacity.SettingChanged += (_, _) => { ChangeCurrentScopeAlpha(); };
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             var bundlePath = Path.Combine(assemblyDir, "bundles", "transparent-sights");
@@ -90,8 +97,6 @@ namespace SevenBoldPencil.TransparentSights
             new Patch_PWA_method_23().Enable();
             new Patch_ItemSpecificationPanel_Show().Enable();
             new Patch_ItemSpecificationPanel_Close().Enable();
-
-            // TODO make changing opacity work when aiming
         }
 
         public Dictionary<string, bool> LoadTransparentScopes(string filePath)
@@ -221,7 +226,8 @@ namespace SevenBoldPencil.TransparentSights
         public void OnAimingEnabled(string scopeTemplateId, Transform scopeTransform)
         {
             var instanceID = scopeTransform.GetInstanceID();
-            if (CurrentPatchedScope.Some(out var currentPatchedScope) && currentPatchedScope != instanceID)
+            if (CurrentPatchedScope.Some(out var currentPatchedScope) &&
+                currentPatchedScope.TransformInstanceID != instanceID)
             {
                 OnAimingDisabled();
             }
@@ -252,17 +258,20 @@ namespace SevenBoldPencil.TransparentSights
             }
 
             // TODO handle case when player quickly switches ads
-            // TODO set material to original when aiming false and alpha goes to normal
             // TODO get tween time from ergo/weight etc
 
-            CurrentPatchedScope = new(instanceID);
+            CurrentPatchedScope = new(new()
+            {
+                TemplateID = scopeTemplateId,
+                TransformInstanceID = instanceID
+            });
             StartCoroutine(TweenScopeToAim(patchedScope, isMountTransparent));
         }
 
         public void OnAimingDisabled()
         {
             if (CurrentPatchedScope.Some(out var currentPatchedScope) &&
-                PatchedScopes.TryGetValue(currentPatchedScope, out var patchedScope))
+                PatchedScopes.TryGetValue(currentPatchedScope.TransformInstanceID, out var patchedScope))
             {
                 CurrentPatchedScope = default;
                 StartCoroutine(TweenScopeFromAim(patchedScope));
@@ -410,6 +419,31 @@ namespace SevenBoldPencil.TransparentSights
         public static double Lerp(double a, double b, double t)
         {
             return a + (b - a) * t;
+        }
+
+        public void ChangeCurrentScopeAlpha()
+        {
+            if (!CurrentPatchedScope.Some(out var currentPatchedScope))
+            {
+                return;
+            }
+            if (!TransparentScopes.TryGetValue(currentPatchedScope.TemplateID, out var isMountTransparent))
+            {
+                return;
+            }
+            if (!PatchedScopes.TryGetValue(currentPatchedScope.TransformInstanceID, out var patchedScope))
+            {
+                return;
+            }
+
+            // TODO what if tweening?
+            var toAlpha = AimingScopeOpacity.Value;
+
+            SetAlpha(patchedScope.ScopeRenderers, toAlpha);
+            if (isMountTransparent)
+            {
+                SetAlpha(patchedScope.MountRenderers, toAlpha);
+            }
         }
     }
 }
