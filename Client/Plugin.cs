@@ -49,11 +49,12 @@ namespace SevenBoldPencil.TransparentSights
     [BepInPlugin("7Bpencil.TransparentSights", "7Bpencil.TransparentSights", "1.0.0")]
     public class Plugin : BaseUnityPlugin
     {
+        private const double SaveLagTime = 60;
 		private static string[] ScopeTransparencyModeNames =
 		[
-			"TRANSP.: OFF",
-			"TRANSP.: ON",
-			"TRANSP.: ON + MOUNT",
+			"TRANSP. OFF",
+			"TRANSP. ON",
+			"TRANSP. ON + MOUNT",
 		];
 
         public static Plugin Instance;
@@ -62,11 +63,13 @@ namespace SevenBoldPencil.TransparentSights
 
 		public ManualLogSource LoggerInstance;
 
+        private string ConfigPath;
         private Shader SightShader;
-        private Dictionary<string, bool> TransparentScopes = new(); // TODO load and dump on FS
-        private Dictionary<string, Dictionary<ItemSpecificationPanel, ContextMenuButton>> ScopesItemPanels = new();
-        private Dictionary<int, PatchedScopeRenderers> PatchedScopes = new();
+        private Dictionary<string, bool> TransparentScopes;
+        private Dictionary<string, Dictionary<ItemSpecificationPanel, ContextMenuButton>> ScopesItemPanels;
+        private Dictionary<int, PatchedScopeRenderers> PatchedScopes;
         private Option<int> CurrentPatchedScope;
+        private Option<double> LastSaveTime;
 
         private void Awake()
         {
@@ -79,10 +82,52 @@ namespace SevenBoldPencil.TransparentSights
             var bundlePath = Path.Combine(assemblyDir, "bundles", "transparent-sights");
             var bundle = AssetBundle.LoadFromFile(bundlePath);
             SightShader = bundle.LoadAsset<Shader>("Assets/TransparentSights/Shaders/Bumped Specular SMap.shader");
+            ConfigPath = Path.Combine(assemblyDir, "transparent-sights-config.json");
+            TransparentScopes = LoadTransparentScopes(ConfigPath);
+            ScopesItemPanels = new();
+            PatchedScopes = new();
 
             new Patch_PWA_method_23().Enable();
             new Patch_ItemSpecificationPanel_Show().Enable();
             new Patch_ItemSpecificationPanel_Close().Enable();
+
+            // TODO make changing opacity work when aiming
+        }
+
+        public Dictionary<string, bool> LoadTransparentScopes(string filePath)
+        {
+            if (SafeIO.ReadAllText(filePath).Ok(out var json, out var e))
+            {
+                var result = JsonConvert.DeserializeObject<Dictionary<string, bool>>(json);
+                return result;
+            }
+            else
+            {
+                Logger.LogError($"Failed to load transparent scopes, rolling back to default config: {e}");
+            }
+
+            return new();
+        }
+
+        public void SaveTransparentScopesToFile(string filePath, Dictionary<string, bool> transparentScopes)
+        {
+            var json = JsonConvert.SerializeObject(transparentScopes, Formatting.Indented);
+            SafeIO.WriteAllTextAsync(filePath, json);
+        }
+
+        public void Update()
+        {
+            // SaveLagTime and LastSaveTime are needed to not write to file
+            // every time user changes scope transparency mode
+
+            if (LastSaveTime.Some(out var lastSaveTime))
+            {
+                if (Time.realtimeSinceStartupAsDouble - lastSaveTime >= SaveLagTime)
+                {
+                    SaveTransparentScopesToFile(ConfigPath, TransparentScopes);
+                    LastSaveTime = default;
+                }
+            }
         }
 
         public static ScopeTransparencyMode GetNextMode(ScopeTransparencyMode value)
@@ -134,6 +179,8 @@ namespace SevenBoldPencil.TransparentSights
             {
                 TransparentScopes.Add(scopeTemplateId, false);
             }
+
+            LastSaveTime = new(Time.realtimeSinceStartupAsDouble);
         }
 
         public void AddPanel(string scopeTemplateId, ItemSpecificationPanel panel, ContextMenuButton toggleButton)
