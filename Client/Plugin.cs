@@ -240,21 +240,13 @@ namespace SevenBoldPencil.TransparentSights
             if (!PatchedScopes.TryGetValue(instanceID, out var patchedScope))
             {
 				var mountTransform = scopeTransform.parent.parent;
-                if (scopeTransform && scopeTransform.TryGetComponent<LODGroup>(out var scopeLodGroup) &&
-                    mountTransform && mountTransform.TryGetComponent<LODGroup>(out var mountLodGroup))
+                patchedScope = new PatchedScopeRenderers()
                 {
-                    patchedScope = new PatchedScopeRenderers()
-                    {
-                        MountRenderers = PatchScopeRendererLODs(mountLodGroup),
-                        ScopeRenderers = PatchScopeRendererLODs(scopeLodGroup),
-                    };
-                    PatchedScopes.Add(instanceID, patchedScope);
-                }
-                else
-                {
-                    Logger.LogWarning($"Failed to get LODGroup for scope and its mount: {scopeTemplateId}, {scopeTransform.gameObject.name}");
-                    return;
-                }
+                    MountRenderers = PatchScopeRendererLODs(mountTransform),
+                    ScopeRenderers = PatchScopeRendererLODs(scopeTransform),
+                };
+                PatchedScopes.Add(instanceID, patchedScope);
+                Logger.LogWarning($"Patched scope: {scopeTemplateId}, {scopeTransform.gameObject.name}");
             }
 
             // TODO handle case when player quickly switches ads
@@ -276,6 +268,16 @@ namespace SevenBoldPencil.TransparentSights
                 CurrentPatchedScope = default;
                 StartCoroutine(TweenScopeFromAim(patchedScope));
             }
+        }
+
+        public List<PatchedRenderer> PatchScopeRendererLODs(Transform scopeTransform)
+        {
+            if (scopeTransform && scopeTransform.TryGetComponent<LODGroup>(out var scopeLodGroup))
+            {
+                return PatchScopeRendererLODs(scopeLodGroup);
+            }
+
+            return [];
         }
 
         public List<PatchedRenderer> PatchScopeRendererLODs(LODGroup lodGroup)
