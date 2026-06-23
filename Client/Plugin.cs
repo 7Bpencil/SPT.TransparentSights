@@ -86,9 +86,7 @@ namespace SevenBoldPencil.TransparentSights
             AimingScopeOpacity.SettingChanged += (_, _) => { ChangeCurrentScopeAlpha(); };
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            var bundlePath = Path.Combine(assemblyDir, "bundles", "transparent-sights");
-            var bundle = AssetBundle.LoadFromFile(bundlePath);
-            SightShader = bundle.LoadAsset<Shader>("Assets/TransparentSights/Shaders/Bumped Specular SMap.shader");
+            SightShader = Shader.Find("Transparent/DepthZwriteDithered");
             ConfigPath = Path.Combine(assemblyDir, "transparent-sights-config.json");
             TransparentScopes = LoadTransparentScopes(ConfigPath);
             ScopesItemPanels = new();
@@ -381,6 +379,7 @@ namespace SevenBoldPencil.TransparentSights
                 {
     				if (patchedMaterial.shader.name == SightShader.name)
                     {
+                        // TODO no idea how to set opacity with this shader
                         patchedMaterial.color = patchedMaterial.color.WithAlpha(alpha);
                     }
                 }
