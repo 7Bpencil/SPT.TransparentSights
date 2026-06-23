@@ -149,7 +149,7 @@ namespace SevenBoldPencil.TransparentSights
 					return;
 				}
 
-				var scopeTemplateId = scope.Item.Template._id.StringID;
+				var scopeTemplateId = scope.Item.StringTemplateId;
 				var scopeTransform = __instance.CurrentScope.Bone.transform.parent;
 				Plugin.Instance.OnAimingEnabled(scopeTemplateId, scopeTransform);
 			}
@@ -177,7 +177,7 @@ namespace SevenBoldPencil.TransparentSights
                 return;
             }
 
-    		var templateId = item.Template._id.StringID;
+    		var templateId = item.StringTemplateId;
 
 			void OnClick()
             {
@@ -215,7 +215,7 @@ namespace SevenBoldPencil.TransparentSights
                 return;
             }
 
-    		var templateId = item.Template._id.StringID;
+    		var templateId = item.StringTemplateId;
 			Plugin.Instance.RemovePanel(templateId, __instance);
         }
     }
