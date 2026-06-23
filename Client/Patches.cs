@@ -172,6 +172,10 @@ namespace SevenBoldPencil.TransparentSights
         {
 			var __instance__ = new ItemSpecificationPanel_Proxy(__instance);
 			var item = __instance__.item_0;
+			if (item == null)
+			{
+				return;
+			}
 			if (item.Template is not SightsTemplateClass)
             {
                 return;
@@ -210,6 +214,10 @@ namespace SevenBoldPencil.TransparentSights
         {
 			var __instance__ = new ItemSpecificationPanel_Proxy(__instance);
 			var item = __instance__.item_0;
+			if (item == null)
+			{
+				return;
+			}
 			if (item.Template is not SightsTemplateClass)
             {
                 return;
