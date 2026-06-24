@@ -56,7 +56,7 @@ namespace SevenBoldPencil.Common
 			}
 		}
 
-        public static string[] GetFiles(string directoryPath, string searchPattern = "*")
+        public static string[] GetFiles(string directoryPath, string searchPattern = "*", SearchOption searchOption = SearchOption.TopDirectoryOnly)
         {
             if (!Directory.Exists(directoryPath))
             {
@@ -64,7 +64,7 @@ namespace SevenBoldPencil.Common
             }
             try
             {
-                return Directory.GetFiles(directoryPath, searchPattern);
+                return Directory.GetFiles(directoryPath, searchPattern, searchOption);
             }
             catch
             {
@@ -72,7 +72,7 @@ namespace SevenBoldPencil.Common
             }
         }
 
-        public static string[] GetDirectories(string directoryPath, string searchPattern = "*")
+        public static string[] GetDirectories(string directoryPath, string searchPattern = "*", SearchOption searchOption = SearchOption.TopDirectoryOnly)
         {
             if (!Directory.Exists(directoryPath))
             {
@@ -80,12 +80,31 @@ namespace SevenBoldPencil.Common
             }
             try
             {
-                return Directory.GetDirectories(directoryPath, searchPattern);
+                return Directory.GetDirectories(directoryPath, searchPattern, searchOption);
             }
             catch
             {
                 return [];
             }
         }
+
+		public static char[] InvalidFileNameChars = Path.GetInvalidFileNameChars();
+		public static bool IsValidFileName(string fileName)
+		{
+		    if (string.IsNullOrWhiteSpace(fileName))
+			{
+		        return false;
+			}
+			if (fileName.IndexOfAny(InvalidFileNameChars) >= 0)
+			{
+				return false;
+			}
+			if (fileName.StartsWith(" "))
+			{
+				return false;
+			}
+
+			return true;
+		}
 	}
 }
