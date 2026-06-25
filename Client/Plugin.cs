@@ -403,9 +403,8 @@ namespace SevenBoldPencil.TransparentSights
             var newMaterials = new Material[oldMaterials.Length];
             for (var i = 0; i < oldMaterials.Length; i++)
             {
-                // TODO what if shader is different?
                 var oldMaterial = oldMaterials[i];
-                if (oldMaterial && oldMaterial.shader.name == "p0/Reflective/Bumped Specular SMap")
+                if (oldMaterial && IsOpaqueMaterial(oldMaterial))
                 {
                     var newMaterial = new Material(SightShader);
                     newMaterial.CopyPropertiesFromMaterial(oldMaterial);
@@ -425,6 +424,12 @@ namespace SevenBoldPencil.TransparentSights
                 Patched = newMaterials,
             });
 		}
+
+        public bool IsOpaqueMaterial(Material material)
+        {
+            var shaderName = material.shader.name;
+            return shaderName == "p0/Reflective/Bumped Specular SMap";
+        }
 
         public void TweenScopeToAim(PatchedScopeRenderers patchedScope, bool isMountTransparent, DepthOfField DOF)
         {
