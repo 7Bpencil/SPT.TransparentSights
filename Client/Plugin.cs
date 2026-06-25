@@ -395,7 +395,6 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return default;
             }
-            Logger.LogWarning(renderer.name);
             var oldMaterials = renderer.materials;
             if (oldMaterials == null)
             {
