@@ -73,7 +73,7 @@ namespace SevenBoldPencil.TransparentSights
     {
         public static readonly int _Cull = Shader.PropertyToID("_Cull");
 
-        private const double SaveLagTime = 60;
+        private const double SaveLagTime = 10;
 		private static string[] ScopeTransparencyModeNames =
 		[
 			"TRANSP. OFF",
