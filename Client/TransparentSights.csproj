@@ -94,6 +94,7 @@
       <OutDir>$(ProjectDir)\..\..\..\BepInEx\plugins\$(TargetName)</OutDir>
     </PropertyGroup>
     <Exec Command="mkdir &quot;$(OutDir)&quot;" ContinueOnError="true" />
+    <Copy SourceFiles="config.json" DestinationFolder="$(OutDir)" />
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(OutDir)" />
   </Target>
 </Project>

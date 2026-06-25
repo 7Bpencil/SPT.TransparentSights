@@ -124,7 +124,7 @@ namespace SevenBoldPencil.TransparentSights
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             SightShader = Shader.Find("Transparent/DepthZwriteDithered");
-            ConfigPath = Path.Combine(assemblyDir, "transparent-sights-config.json");
+            ConfigPath = Path.Combine(assemblyDir, "config.json");
             TransparentScopes = LoadTransparentScopes(ConfigPath);
             ScopesItemPanels = new();
             PatchedScopes = new();
