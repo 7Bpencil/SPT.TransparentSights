@@ -49,8 +49,8 @@ namespace SevenBoldPencil.TransparentSights
 
     public struct PatchedScopeRenderers
     {
-        public List<PatchedRenderer> MountRenderers;
-        public List<PatchedRenderer> ScopeRenderers;
+        public List<Option<PatchedRenderer>> MountRenderers;
+        public List<Option<PatchedRenderer>> ScopeRenderers;
     }
 
     public struct PatchedRenderer
@@ -365,7 +365,7 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public List<PatchedRenderer> PatchScopeRendererLODs(Transform scopeTransform)
+        public List<Option<PatchedRenderer>> PatchScopeRendererLODs(Transform scopeTransform)
         {
             if (scopeTransform && scopeTransform.TryGetComponent<LODGroup>(out var scopeLodGroup))
             {
@@ -375,9 +375,9 @@ namespace SevenBoldPencil.TransparentSights
             return [];
         }
 
-        public List<PatchedRenderer> PatchScopeRendererLODs(LODGroup lodGroup)
+        public List<Option<PatchedRenderer>> PatchScopeRendererLODs(LODGroup lodGroup)
         {
-            var result = new List<PatchedRenderer>();
+            var result = new List<Option<PatchedRenderer>>();
             foreach (var lod in lodGroup.GetLODs())
             {
                 foreach (var renderer in lod.renderers)
@@ -389,15 +389,24 @@ namespace SevenBoldPencil.TransparentSights
             return result;
         }
 
-		public PatchedRenderer PatchScopeRenderer(Renderer renderer)
+		public Option<PatchedRenderer> PatchScopeRenderer(Renderer renderer)
 		{
+            if (!renderer)
+            {
+                return default;
+            }
+            Logger.LogWarning(renderer.name);
             var oldMaterials = renderer.materials;
+            if (oldMaterials == null)
+            {
+                return default;
+            }
             var newMaterials = new Material[oldMaterials.Length];
             for (var i = 0; i < oldMaterials.Length; i++)
             {
                 // TODO what if shader is different?
                 var oldMaterial = oldMaterials[i];
-				if (oldMaterial.shader.name == "p0/Reflective/Bumped Specular SMap")
+                if (oldMaterial && oldMaterial.shader.name == "p0/Reflective/Bumped Specular SMap")
                 {
                     var newMaterial = new Material(SightShader);
                     newMaterial.CopyPropertiesFromMaterial(oldMaterial);
@@ -410,12 +419,12 @@ namespace SevenBoldPencil.TransparentSights
                 }
             }
 
-            return new PatchedRenderer()
+            return new(new PatchedRenderer()
             {
                 Renderer = renderer,
                 Original = oldMaterials,
                 Patched = newMaterials,
-            };
+            });
 		}
 
         public void TweenScopeToAim(PatchedScopeRenderers patchedScope, bool isMountTransparent, DepthOfField DOF)
@@ -432,19 +441,25 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void SetPatched(List<PatchedRenderer> patchedRenderers)
+        public void SetPatched(List<Option<PatchedRenderer>> patchedRenderers)
         {
-            foreach (var patchedRenderer in patchedRenderers)
+            foreach (var patchedRendererOption in patchedRenderers)
             {
-                patchedRenderer.Renderer.materials = patchedRenderer.Patched;
+                if (patchedRendererOption.Some(out var patchedRenderer))
+                {
+                    patchedRenderer.Renderer.materials = patchedRenderer.Patched;
+                }
             }
         }
 
-        public void SetOriginal(List<PatchedRenderer> patchedRenderers)
+        public void SetOriginal(List<Option<PatchedRenderer>> patchedRenderers)
         {
-            foreach (var patchedRenderer in patchedRenderers)
+            foreach (var patchedRendererOption in patchedRenderers)
             {
-                patchedRenderer.Renderer.materials = patchedRenderer.Original;
+                if (patchedRendererOption.Some(out var patchedRenderer))
+                {
+                    patchedRenderer.Renderer.materials = patchedRenderer.Original;
+                }
             }
         }
 
