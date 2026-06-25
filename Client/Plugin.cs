@@ -58,9 +58,6 @@ namespace SevenBoldPencil.TransparentSights
         public Renderer Renderer;
         public Material[] Original;
         public Material[] Patched;
-        public Texture[] OriginalTextures;
-        public RenderTexture[] PatchedTextures;
-        // TODO destroy created materials and textures
     }
 
 	public enum ScopeTransparencyMode
@@ -74,10 +71,7 @@ namespace SevenBoldPencil.TransparentSights
     [BepInPlugin("7Bpencil.TransparentSights", "7Bpencil.TransparentSights", "1.0.0")]
     public class Plugin : BaseUnityPlugin
     {
-        public static readonly int _MainTex = Shader.PropertyToID("_MainTex");
-        public static readonly int _ColorMultiplier = Shader.PropertyToID("_ColorMultiplier");
-        public static readonly int _Alpha = Shader.PropertyToID("_Alpha");
-        public static readonly int _OpacityScale = Shader.PropertyToID("_OpacityScale");
+        public static readonly int _Cull = Shader.PropertyToID("_Cull");
 
         private const double SaveLagTime = 60;
 		private static string[] ScopeTransparencyModeNames =
@@ -96,14 +90,10 @@ namespace SevenBoldPencil.TransparentSights
         public static ConfigEntry<float> DOF_focalSize;
         public static ConfigEntry<float> DOF_foregroundOverlap;
         public static ConfigEntry<float> DOF_maxBlurSize;
-        public static ConfigEntry<float> Scope_colorMultiplier;
-        public static ConfigEntry<float> Scope_alpha;
-        public static ConfigEntry<float> Scope_opacityScale;
 
 		public ManualLogSource LoggerInstance;
 
         private string ConfigPath;
-        private Material ChangeColorMaterial;
         private Shader SightShader;
         private Dictionary<string, bool> TransparentScopes;
         private Dictionary<string, Dictionary<ItemSpecificationPanel, ContextMenuButton>> ScopesItemPanels;
@@ -122,10 +112,7 @@ namespace SevenBoldPencil.TransparentSights
             DOF_focalLength = Config.Bind<float>("Depth of Field", "Focal Length", 1.53f, new ConfigDescription("", new AcceptableValueRange<float>(0, 100)));
             DOF_focalSize = Config.Bind<float>("Depth of Field", "Focal Size", 0.61f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
             DOF_foregroundOverlap = Config.Bind<float>("Depth of Field", "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
-            DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 3.75f, new ConfigDescription("", new AcceptableValueRange<float>(0, 100)));
-            Scope_colorMultiplier = Config.Bind<float>("Scope", "Color Multiplier", 0.25f, new ConfigDescription("", new AcceptableValueRange<float>(0, 1)));
-            Scope_alpha = Config.Bind<float>("Scope", "Alpha", 0.25f, new ConfigDescription("", new AcceptableValueRange<float>(0, 1)));
-            Scope_opacityScale = Config.Bind<float>("Scope", "Opacity Scale", 1f, new ConfigDescription("", new AcceptableValueRange<float>(0, 4)));
+            DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 100)));
 
             DOF_enabled.SettingChanged += (_, _) => { Change_DOF(Set_DOF_enabled); };
             DOF_blurSampleCount.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
@@ -134,17 +121,9 @@ namespace SevenBoldPencil.TransparentSights
             DOF_focalSize.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
             DOF_foregroundOverlap.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
             DOF_maxBlurSize.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
-            Scope_colorMultiplier.SettingChanged += (_, _) => { ChangeCurrentScopeAlpha(); };
-            Scope_alpha.SettingChanged += (_, _) => { ChangeCurrentScopeAlpha(); };
-            Scope_opacityScale.SettingChanged += (_, _) => { ChangeCurrentScopeAlpha(); };
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-            var bundlePath = Path.Combine(assemblyDir, "bundles", "transparent-sights");
-            var bundle = AssetBundle.LoadFromFile(bundlePath);
-            var changeColorShader = bundle.LoadAsset<Shader>("Assets/TransparentSights/Shaders/ChangeColor.shader");
-            ChangeColorMaterial = new Material(changeColorShader);
-            // SightShader = Shader.Find("Transparent/DepthZwriteDithered");
-            SightShader = Shader.Find("Assets/TransparentSights/Custom Shaders/Tarkov Custom/Metallic/Lit/Transparent/Epic Transparent No AClip ZWrite_Icon.shader");
+            SightShader = Shader.Find("Transparent/DepthZwriteDithered");
             ConfigPath = Path.Combine(assemblyDir, "transparent-sights-config.json");
             TransparentScopes = LoadTransparentScopes(ConfigPath);
             ScopesItemPanels = new();
@@ -226,7 +205,6 @@ namespace SevenBoldPencil.TransparentSights
             SafeIO.WriteAllTextAsync(filePath, json);
         }
 
-        public Material FaceShieldGlassMaterial;
         public void Update()
         {
             // SaveLagTime and LastSaveTime are needed to not write to file
@@ -240,42 +218,6 @@ namespace SevenBoldPencil.TransparentSights
                     LastSaveTime = default;
                 }
             }
-
-            // TODO nocheckin
-            if (Input.GetKeyDown(KeyCode.F13))
-            {
-                var scene = SceneManager.GetSceneByName("CommonUIScene");
-                if (scene.IsValid())
-                {
-                    foreach (var root in scene.GetRootGameObjects())
-                    {
-                        var target = GetItem(root.transform);
-                        if (target)
-                        {
-                            foreach (var material in target.GetComponent<MeshRenderer>().materials)
-                            {
-                                if (material.shader.name == SightShader.name)
-                                {
-                                    FaceShieldGlassMaterial = material;
-                                    Logger.LogWarning("FOUND MATERIAL");
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        public Transform GetItem(Transform root)
-        {
-            var target = root.Find("Rotator/Positioned Object/Preview Pivot/item_equipment_helmet_opsCore_handgun_face_shield/axis/helmet_ops_core_handgun_face_shield_LOD0");
-            if (target)
-            {
-                return target;
-            }
-
-            return root.Find("Rotator/Positioned Object/Preview Pivot/item_equipment_helmet_opsCore_handgun_face_shield(Clone)/axis/helmet_ops_core_handgun_face_shield_LOD0");
         }
 
         public static ScopeTransparencyMode GetNextMode(ScopeTransparencyMode value)
@@ -390,7 +332,6 @@ namespace SevenBoldPencil.TransparentSights
                     ScopeRenderers = PatchScopeRendererLODs(scopeTransform),
                 };
                 PatchedScopes.Add(instanceID, patchedScope);
-                Logger.LogWarning($"Patched scope: {scopeTemplateId}, {scopeTransform.gameObject.name}");
             }
 
             var DOF = CameraClass.Instance.DepthOfField_0;
@@ -450,32 +391,18 @@ namespace SevenBoldPencil.TransparentSights
 
 		public PatchedRenderer PatchScopeRenderer(Renderer renderer)
 		{
-            var colorMultiplier = Scope_colorMultiplier.Value;
-            var alpha = Scope_alpha.Value;
-            var opacityScale = Scope_opacityScale.Value;
-
             var oldMaterials = renderer.materials;
             var newMaterials = new Material[oldMaterials.Length];
-            var oldTextures = new Texture[oldMaterials.Length];
-            var newTextures = new RenderTexture[oldMaterials.Length];
             for (var i = 0; i < oldMaterials.Length; i++)
             {
                 // TODO what if shader is different?
                 var oldMaterial = oldMaterials[i];
 				if (oldMaterial.shader.name == "p0/Reflective/Bumped Specular SMap")
                 {
-                    var oldTexture = oldMaterial.GetTexture(_MainTex);
-                    var newTexture = CreateRenderTexture(oldTexture);
-                    PatchTexture(newTexture, oldTexture, colorMultiplier, alpha);
-                    oldTextures[i] = oldTexture;
-                    newTextures[i] = newTexture;
-
                     var newMaterial = new Material(SightShader);
                     newMaterial.CopyPropertiesFromMaterial(oldMaterial);
-                    newMaterial.SetTexture(_MainTex, newTexture);
-                    newMaterial.SetFloat(_OpacityScale, opacityScale);
+                    newMaterial.SetFloat(_Cull, 2); // set backface culling, because some scopes have front face culling for some reasons
                     newMaterials[i] = newMaterial;
-                    // newMaterials[i] = FaceShieldGlassMaterial;
                 }
                 else
                 {
@@ -488,29 +415,8 @@ namespace SevenBoldPencil.TransparentSights
                 Renderer = renderer,
                 Original = oldMaterials,
                 Patched = newMaterials,
-                OriginalTextures = oldTextures,
-                PatchedTextures = newTextures,
             };
 		}
-
-        public static RenderTexture CreateRenderTexture(Texture texture)
-        {
-            // use parameters of original texture
-            var renderTexture = new RenderTexture(texture.width, texture.height, 0);
-            renderTexture.anisoLevel = texture.anisoLevel;
-            renderTexture.filterMode = texture.filterMode;
-            renderTexture.wrapMode = texture.wrapMode;
-            return renderTexture;
-        }
-
-        public void PatchTexture(RenderTexture renderTexture, Texture source, float colorMultiplier, float alpha)
-        {
-            ChangeColorMaterial.SetFloat(_ColorMultiplier, colorMultiplier);
-            ChangeColorMaterial.SetFloat(_Alpha, alpha);
-            ChangeColorMaterial.SetTexture(_MainTex, source);
-            Graphics.Blit(null, renderTexture, ChangeColorMaterial);
-            ChangeColorMaterial.SetTexture(_MainTex, null);
-        }
 
         public void TweenScopeToAim(PatchedScopeRenderers patchedScope, bool isMountTransparent, DepthOfField DOF)
         {
@@ -542,27 +448,6 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void PatchTextures(List<PatchedRenderer> patchedRenderers, float colorMultiplier, float alpha, float opacityScale)
-        {
-            foreach (var patchedRenderer in patchedRenderers)
-            {
-                var patchedMaterials = patchedRenderer.Patched;
-                var originalTextures = patchedRenderer.OriginalTextures;
-                var patchedTextures = patchedRenderer.PatchedTextures;
-                for (var i = 0; i < patchedMaterials.Length; i++)
-                {
-                    var patchedMaterial = patchedMaterials[i];
-    				if (patchedMaterial.shader.name == SightShader.name)
-                    {
-                        var originalTexture = originalTextures[i];
-                        var patchedTexture = patchedTextures[i];
-                        patchedMaterial.SetFloat(_OpacityScale, opacityScale);
-                        PatchTexture(patchedTexture, originalTexture, colorMultiplier, alpha);
-                    }
-                }
-            }
-        }
-
         public void TweenScopeFromAim(PatchedScopeRenderers patchedScope, DepthOfField DOF, SettingsDOF originalSettingsDOF)
         {
             SetOriginal(patchedScope.ScopeRenderers);
@@ -570,40 +455,5 @@ namespace SevenBoldPencil.TransparentSights
             Set_DOF_parameters(DOF, originalSettingsDOF);
         }
 
-        public static double InverseLerp(double a, double b, double value)
-        {
-            return (value - a) / (b - a);
-        }
-
-        public static double Lerp(double a, double b, double t)
-        {
-            return a + (b - a) * t;
-        }
-
-        public void ChangeCurrentScopeAlpha()
-        {
-            if (!CurrentPatchedScope.Some(out var currentPatchedScope))
-            {
-                return;
-            }
-            if (!TransparentScopes.TryGetValue(currentPatchedScope.TemplateID, out var isMountTransparent))
-            {
-                return;
-            }
-            if (!PatchedScopes.TryGetValue(currentPatchedScope.TransformInstanceID, out var patchedScope))
-            {
-                return;
-            }
-
-            var colorMultiplier = Scope_colorMultiplier.Value;
-            var alpha = Scope_alpha.Value;
-            var opacityScale = Scope_opacityScale.Value;
-
-            PatchTextures(patchedScope.ScopeRenderers, colorMultiplier, alpha, opacityScale);
-            if (isMountTransparent)
-            {
-                PatchTextures(patchedScope.MountRenderers, colorMultiplier, alpha, opacityScale);
-            }
-        }
     }
 }
