@@ -104,21 +104,18 @@ namespace SevenBoldPencil.TransparentSights
 			{
 				if (!__instance)
 				{
-					Logger.LogWarning($"PWA null?");
 					return;
 				}
 				var __instance__ = new ProceduralWeaponAnimation_Proxy(__instance);
 				var firearmController = __instance__._firearmController;
 				if (!firearmController)
 				{
-					Logger.LogWarning($"FirearmController null?");
 					return;
 				}
 				var _firearmController = new FirearmController_Proxy(firearmController);
 				var player = _firearmController._player;
 				if (!player)
 				{
-					Logger.LogWarning($"Player null?");
 					return;
 				}
 
