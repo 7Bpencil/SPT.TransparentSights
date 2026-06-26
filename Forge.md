@@ -6,7 +6,7 @@ Alpha version, please share feedback in comments
 
 ## FAQ
 
-1) My favourite scope does not become transparent
+1) My scope does not become transparent
     - Open scope stat card and switch `TRANSP: OFF` to `TRANSP: ON`
 2) I dislike blur, how can I disable it?
     - Open F12 menu and untick `Depth of Field/Enabled`
