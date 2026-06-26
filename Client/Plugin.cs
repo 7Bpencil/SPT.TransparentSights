@@ -379,8 +379,8 @@ namespace SevenBoldPencil.TransparentSights
 				var mountTransform = scopeTransform.parent.parent;
                 patchedScope = new PatchedScopeRenderers()
                 {
-                    MountRenderers = PatchScopeRendererLODs(mountTransform),
-                    ScopeRenderers = PatchScopeRendererLODs(scopeTransform),
+                    MountRenderers = PatchScopeRenderers(mountTransform),
+                    ScopeRenderers = PatchScopeRenderers(scopeTransform),
                 };
                 PatchedScopes.Add(instanceID, patchedScope);
             }
@@ -416,17 +416,22 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public List<Option<PatchedRenderer>> PatchScopeRendererLODs(Transform scopeTransform)
+        public List<Option<PatchedRenderer>> PatchScopeRenderers(Transform scopeTransform)
         {
-            if (scopeTransform && scopeTransform.TryGetComponent<LODGroup>(out var scopeLodGroup))
+            if (!scopeTransform)
             {
-                return PatchScopeRendererLODs(scopeLodGroup);
+                return [];
+            }
+            if (scopeTransform.TryGetComponent<LODGroup>(out var scopeLodGroup))
+            {
+                return PatchScopeRenderers(scopeLodGroup);
             }
 
-            return [];
+            var renderers = scopeTransform.GetComponentsInChildren<Renderer>();
+            return PatchScopeRenderers(renderers);
         }
 
-        public List<Option<PatchedRenderer>> PatchScopeRendererLODs(LODGroup lodGroup)
+        public List<Option<PatchedRenderer>> PatchScopeRenderers(LODGroup lodGroup)
         {
             var result = new List<Option<PatchedRenderer>>();
             foreach (var lod in lodGroup.GetLODs())
@@ -435,6 +440,17 @@ namespace SevenBoldPencil.TransparentSights
                 {
 					result.Add(PatchScopeRenderer(renderer));
                 }
+            }
+
+            return result;
+        }
+
+        public List<Option<PatchedRenderer>> PatchScopeRenderers(Renderer[] renderers)
+        {
+            var result = new List<Option<PatchedRenderer>>(renderers.Length);
+            foreach (var renderer in renderers)
+            {
+				result.Add(PatchScopeRenderer(renderer));
             }
 
             return result;
