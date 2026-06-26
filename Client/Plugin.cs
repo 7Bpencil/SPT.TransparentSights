@@ -479,7 +479,9 @@ namespace SevenBoldPencil.TransparentSights
         public bool IsOpaqueMaterial(Material material)
         {
             var shaderName = material.shader.name;
-            return shaderName == "p0/Reflective/Bumped Specular SMap";
+            return
+                shaderName == "p0/Reflective/Bumped Specular SMap" ||
+                shaderName == "CW FX/BackLens";
         }
 
         public void TweenScopeToAim(PatchedScopeRenderers patchedScope, bool isMountTransparent, DepthOfField DOF)
