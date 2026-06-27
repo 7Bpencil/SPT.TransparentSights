@@ -157,6 +157,20 @@ namespace SevenBoldPencil.TransparentSights
 		}
 	}
 
+	public class Patch_AssetPoolObject_OnDestroy : ModulePatch
+	{
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(AssetPoolObject), nameof(AssetPoolObject.OnDestroy));
+        }
+
+        [PatchPrefix]
+        public static void Prefix(AssetPoolObject __instance)
+		{
+			Plugin.Instance.OnItemDestroy(__instance);
+		}
+	}
+
 	public class Patch_ItemSpecificationPanel_Show : ModulePatch
     {
         protected override MethodBase GetTargetMethod()

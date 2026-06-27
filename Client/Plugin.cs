@@ -9,6 +9,7 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using EFT;
+using EFT.AssetsManager;
 using EFT.InventoryLogic;
 using EFT.UI;
 using EFT.UI.WeaponModding;
@@ -31,7 +32,7 @@ namespace SevenBoldPencil.TransparentSights
     public struct PatchedScope
     {
         public string TemplateID;
-        public int TransformInstanceID;
+        public int InstanceID;
         public DepthOfField DOF;
         public SettingsDOF OriginalSettingsDOF;
     }
@@ -130,6 +131,7 @@ namespace SevenBoldPencil.TransparentSights
             PatchedScopes = new();
 
             new Patch_PWA_method_23().Enable();
+            new Patch_AssetPoolObject_OnDestroy().Enable();
             new Patch_ItemSpecificationPanel_Show().Enable();
             new Patch_ItemSpecificationPanel_Close().Enable();
         }
@@ -361,9 +363,9 @@ namespace SevenBoldPencil.TransparentSights
 
         public void OnAimingEnabled(string scopeTemplateId, Transform scopeTransform)
         {
-            var instanceID = scopeTransform.GetInstanceID();
+            var instanceID = scopeTransform.gameObject.GetInstanceID();
             if (CurrentPatchedScope.Some(out var currentPatchedScope) &&
-                currentPatchedScope.TransformInstanceID != instanceID)
+                currentPatchedScope.InstanceID != instanceID)
             {
                 OnAimingDisabled();
             }
@@ -399,7 +401,7 @@ namespace SevenBoldPencil.TransparentSights
             CurrentPatchedScope = new(new()
             {
                 TemplateID = scopeTemplateId,
-                TransformInstanceID = instanceID,
+                InstanceID = instanceID,
                 DOF = DOF,
                 OriginalSettingsDOF = originalSettings
             });
@@ -409,7 +411,7 @@ namespace SevenBoldPencil.TransparentSights
         public void OnAimingDisabled()
         {
             if (CurrentPatchedScope.Some(out var currentPatchedScope) &&
-                PatchedScopes.TryGetValue(currentPatchedScope.TransformInstanceID, out var patchedScope))
+                PatchedScopes.TryGetValue(currentPatchedScope.InstanceID, out var patchedScope))
             {
                 CurrentPatchedScope = default;
                 TweenScopeFromAim(patchedScope, currentPatchedScope.DOF, currentPatchedScope.OriginalSettingsDOF);
@@ -541,6 +543,39 @@ namespace SevenBoldPencil.TransparentSights
             SetOriginal(patchedScope.ScopeRenderers);
             SetOriginal(patchedScope.MountRenderers);
             Set_DOF_parameters(DOF, originalSettingsDOF);
+        }
+
+        public void OnItemDestroy(AssetPoolObject assetPoolObject)
+        {
+            var instanceID = assetPoolObject.gameObject.GetInstanceID();
+
+            if (CurrentPatchedScope.Some(out var currentPatchedScope) &&
+                currentPatchedScope.InstanceID == instanceID)
+            {
+                OnAimingDisabled();
+            }
+
+            if (PatchedScopes.Remove(instanceID, out var patchedScope))
+            {
+                CleanPatchedRenderers(patchedScope.MountRenderers);
+                CleanPatchedRenderers(patchedScope.ScopeRenderers);
+            }
+        }
+
+        public void CleanPatchedRenderers(List<Option<PatchedRenderer>> renderers)
+        {
+            foreach (var patchedRendererOption in renderers)
+            {
+                if (patchedRendererOption.Some(out var patchedRenderer))
+                {
+                    foreach (var patched in patchedRenderer.Patched)
+                    {
+                        Destroy(patched);
+                    }
+                }
+            }
+
+            renderers.Clear();
         }
 
     }
