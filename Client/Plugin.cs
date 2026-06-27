@@ -29,13 +29,13 @@ using BlurSampleCount = UnityStandardAssets.ImageEffects.DepthOfField.BlurSample
 
 namespace SevenBoldPencil.TransparentSights
 {
-    public struct PatchedScope
-    {
-        public string TemplateID;
-        public int InstanceID;
-        public DepthOfField DOF;
-        public SettingsDOF OriginalSettingsDOF;
-    }
+    public readonly record struct CurrentPatchedScope
+    (
+        int ScopeInstanceID,
+        Option<int> MountInstanceID,
+        DepthOfField DOF,
+        SettingsDOF OriginalSettingsDOF
+    );
 
     public readonly record struct SettingsDOF
     (
@@ -48,18 +48,17 @@ namespace SevenBoldPencil.TransparentSights
         float maxBlurSize
     );
 
-    public struct PatchedScopeRenderers
-    {
-        public List<Option<PatchedRenderer>> MountRenderers;
-        public List<Option<PatchedRenderer>> ScopeRenderers;
-    }
+    public readonly record struct PatchedItem
+    (
+        List<PatchedRenderer> PatchedRenderers
+    );
 
-    public struct PatchedRenderer
-    {
-        public Renderer Renderer;
-        public Material[] Original;
-        public Material[] Patched;
-    }
+    public readonly record struct PatchedRenderer
+    (
+        Renderer Renderer,
+        Material[] Original,
+        Material[] Patched
+    );
 
 	public enum ScopeTransparencyMode
 	{
@@ -98,8 +97,8 @@ namespace SevenBoldPencil.TransparentSights
         private Shader SightShader;
         private Dictionary<string, bool> TransparentScopes;
         private Dictionary<string, Dictionary<ItemSpecificationPanel, ContextMenuButton>> ScopesItemPanels;
-        private Dictionary<int, PatchedScopeRenderers> PatchedScopes;
-        private Option<PatchedScope> CurrentPatchedScope;
+        private Dictionary<int, PatchedItem> PatchedItems;
+        private Option<CurrentPatchedScope> CurrentPatchedScope;
         private Option<double> LastSaveTime;
 
         private void Awake()
@@ -128,7 +127,7 @@ namespace SevenBoldPencil.TransparentSights
             ConfigPath = Path.Combine(assemblyDir, "config.json");
             TransparentScopes = LoadTransparentScopes(ConfigPath);
             ScopesItemPanels = new();
-            PatchedScopes = new();
+            PatchedItems = new();
 
             new Patch_PWA_method_23().Enable();
             new Patch_AssetPoolObject_OnDestroy().Enable();
@@ -307,6 +306,10 @@ namespace SevenBoldPencil.TransparentSights
 
         public void SwitchScopeTransparencyMode(string scopeTemplateId)
         {
+            // notice that we dont immediately reflect this change in CurrentPatchedScope,
+            // because its impossible to change scope setting while ADS (player needs to open inventory first),
+            // so OnAimingEnabled can take care of that
+
             if (TransparentScopes.TryGetValue(scopeTemplateId, out var isMountTransparent))
             {
                 if (isMountTransparent)
@@ -363,9 +366,9 @@ namespace SevenBoldPencil.TransparentSights
 
         public void OnAimingEnabled(string scopeTemplateId, Transform scopeTransform)
         {
-            var instanceID = scopeTransform.gameObject.GetInstanceID();
+            var scopeInstanceID = scopeTransform.gameObject.GetInstanceID();
             if (CurrentPatchedScope.Some(out var currentPatchedScope) &&
-                currentPatchedScope.InstanceID != instanceID)
+                currentPatchedScope.ScopeInstanceID != scopeInstanceID)
             {
                 OnAimingDisabled();
             }
@@ -375,16 +378,27 @@ namespace SevenBoldPencil.TransparentSights
                 return;
             }
 
-            if (!PatchedScopes.TryGetValue(instanceID, out var patchedScope))
+            if (!PatchedItems.ContainsKey(scopeInstanceID) && FindScope(scopeTransform).Some(out var scope))
             {
-                // TODO do we need to patch mount renderers if setting is off?
-				var mountTransform = scopeTransform.parent.parent;
-                patchedScope = new PatchedScopeRenderers()
+                var patchedRenderers = PatchRenderers(scope);
+                var scopeItem = new PatchedItem(patchedRenderers);
+                PatchedItems.Add(scopeInstanceID, scopeItem);
+            }
+
+            // we have to check mount every time because player can put
+            // scope on different mount, so we have to update it properly,
+            // hopefully its not that expensive
+            Option<int> OptionMountInstanceID = default;
+            if (isMountTransparent && FindMount(scopeTransform).Some(out var mount))
+            {
+				var mountInstanceID = mount.gameObject.GetInstanceID();
+                if (!PatchedItems.ContainsKey(mountInstanceID))
                 {
-                    MountRenderers = PatchScopeRenderers(mountTransform),
-                    ScopeRenderers = PatchScopeRenderers(scopeTransform),
-                };
-                PatchedScopes.Add(instanceID, patchedScope);
+                    var patchedRenderers = PatchRenderers(mount);
+                    var mountItem = new PatchedItem(patchedRenderers);
+                    PatchedItems.Add(mountInstanceID, mountItem);
+                }
+                OptionMountInstanceID = new(mountInstanceID);
             }
 
             var DOF = CameraClass.Instance.DepthOfField_0;
@@ -398,67 +412,71 @@ namespace SevenBoldPencil.TransparentSights
                 foregroundOverlap: DOF.foregroundOverlap,
                 maxBlurSize: DOF.maxBlurSize
             );
-            CurrentPatchedScope = new(new()
-            {
-                TemplateID = scopeTemplateId,
-                InstanceID = instanceID,
-                DOF = DOF,
-                OriginalSettingsDOF = originalSettings
-            });
-            TweenScopeToAim(patchedScope, isMountTransparent, DOF);
+            CurrentPatchedScope = new(new CurrentPatchedScope
+            (
+                ScopeInstanceID: scopeInstanceID,
+                MountInstanceID: OptionMountInstanceID,
+                DOF: DOF,
+                OriginalSettingsDOF: originalSettings
+            ));
+            TweenScopeToAim(CurrentPatchedScope.Value);
         }
 
         public void OnAimingDisabled()
         {
-            if (CurrentPatchedScope.Some(out var currentPatchedScope) &&
-                PatchedScopes.TryGetValue(currentPatchedScope.InstanceID, out var patchedScope))
+            if (CurrentPatchedScope.Some(out var currentPatchedScope))
             {
                 CurrentPatchedScope = default;
-                TweenScopeFromAim(patchedScope, currentPatchedScope.DOF, currentPatchedScope.OriginalSettingsDOF);
+                TweenScopeFromAim(currentPatchedScope);
             }
         }
 
-        public List<Option<PatchedRenderer>> PatchScopeRenderers(Transform scopeTransform)
+        public Option<AssetPoolObject> FindScope(Transform scopeTransform)
         {
-            if (!scopeTransform)
+            if (scopeTransform.TryGetComponent<AssetPoolObject>(out var scope))
             {
-                return [];
-            }
-            if (scopeTransform.TryGetComponent<LODGroup>(out var scopeLodGroup))
-            {
-                return PatchScopeRenderers(scopeLodGroup);
+                return new(scope);
             }
 
-            var renderers = scopeTransform.GetComponentsInChildren<Renderer>();
-            return PatchScopeRenderers(renderers);
+            return default;
         }
 
-        public List<Option<PatchedRenderer>> PatchScopeRenderers(LODGroup lodGroup)
+        public Option<AssetPoolObject> FindMount(Transform scopeTransform)
         {
-            var result = new List<Option<PatchedRenderer>>();
-            foreach (var lod in lodGroup.GetLODs())
+            // TODO make it less expensive, item probably knows to which item its attached, right?
+            // its not as simple as .parent.parent...
+
+            const int maxDepth = 3;
+            var parentTranform = scopeTransform.parent;
+
+            for (var i = 0; i < maxDepth; i++)
             {
-                foreach (var renderer in lod.renderers)
+                if (parentTranform.TryGetComponent<AssetPoolObject>(out var mount))
                 {
-					result.Add(PatchScopeRenderer(renderer));
+                    return new(mount);
+                }
+                parentTranform = parentTranform.parent;
+            }
+
+            return default;
+        }
+
+        public List<PatchedRenderer> PatchRenderers(AssetPoolObject scope)
+        {
+            var renderers = scope.Renderers;
+            var result = new List<PatchedRenderer>(renderers.Count);
+            foreach (var renderer in renderers)
+            {
+                if (PatchRenderer(renderer).Some(out var patchedRenderer))
+                {
+    				result.Add(patchedRenderer);
                 }
             }
 
             return result;
         }
 
-        public List<Option<PatchedRenderer>> PatchScopeRenderers(Renderer[] renderers)
-        {
-            var result = new List<Option<PatchedRenderer>>(renderers.Length);
-            foreach (var renderer in renderers)
-            {
-				result.Add(PatchScopeRenderer(renderer));
-            }
-
-            return result;
-        }
-
-		public Option<PatchedRenderer> PatchScopeRenderer(Renderer renderer)
+		public Option<PatchedRenderer> PatchRenderer(Renderer renderer)
 		{
             if (!renderer)
             {
@@ -486,12 +504,12 @@ namespace SevenBoldPencil.TransparentSights
                 }
             }
 
-            return new(new PatchedRenderer()
-            {
-                Renderer = renderer,
-                Original = oldMaterials,
-                Patched = newMaterials,
-            });
+            return new(new PatchedRenderer
+            (
+                Renderer: renderer,
+                Original: oldMaterials,
+                Patched: newMaterials
+            ));
 		}
 
         public bool IsOpaqueMaterial(Material material)
@@ -502,47 +520,55 @@ namespace SevenBoldPencil.TransparentSights
                 shaderName == "CW FX/BackLens";
         }
 
-        public void TweenScopeToAim(PatchedScopeRenderers patchedScope, bool isMountTransparent, DepthOfField DOF)
+        public void TweenScopeToAim(CurrentPatchedScope currentPatchedScope)
         {
-            SetPatched(patchedScope.ScopeRenderers);
-            if (isMountTransparent)
             {
-                SetPatched(patchedScope.MountRenderers);
+                ForPatchedItem(currentPatchedScope.ScopeInstanceID, SetPatchedMaterials);
             }
-
+            if (currentPatchedScope.MountInstanceID.Some(out var mountInstanceID))
+            {
+                ForPatchedItem(mountInstanceID, SetPatchedMaterials);
+            }
             if (DOF_enabled.Value)
             {
-                Set_DOF_parameters_config(DOF);
+                Set_DOF_parameters_config(currentPatchedScope.DOF);
             }
         }
 
-        public void SetPatched(List<Option<PatchedRenderer>> patchedRenderers)
+        public void ForPatchedItem(int instanceID, Action<PatchedItem> doAction)
         {
-            foreach (var patchedRendererOption in patchedRenderers)
+            if (PatchedItems.TryGetValue(instanceID, out var patchedItem))
             {
-                if (patchedRendererOption.Some(out var patchedRenderer))
-                {
-                    patchedRenderer.Renderer.materials = patchedRenderer.Patched;
-                }
+                doAction(patchedItem);
             }
         }
 
-        public void SetOriginal(List<Option<PatchedRenderer>> patchedRenderers)
+        public void SetPatchedMaterials(PatchedItem patchedItem)
         {
-            foreach (var patchedRendererOption in patchedRenderers)
+            foreach (var patchedRenderer in patchedItem.PatchedRenderers)
             {
-                if (patchedRendererOption.Some(out var patchedRenderer))
-                {
-                    patchedRenderer.Renderer.materials = patchedRenderer.Original;
-                }
+                patchedRenderer.Renderer.materials = patchedRenderer.Patched;
             }
         }
 
-        public void TweenScopeFromAim(PatchedScopeRenderers patchedScope, DepthOfField DOF, SettingsDOF originalSettingsDOF)
+        public void SetOriginalMaterials(PatchedItem patchedItem)
         {
-            SetOriginal(patchedScope.ScopeRenderers);
-            SetOriginal(patchedScope.MountRenderers);
-            Set_DOF_parameters(DOF, originalSettingsDOF);
+            foreach (var patchedRenderer in patchedItem.PatchedRenderers)
+            {
+                patchedRenderer.Renderer.materials = patchedRenderer.Original;
+            }
+        }
+
+        public void TweenScopeFromAim(CurrentPatchedScope currentPatchedScope)
+        {
+            {
+                ForPatchedItem(currentPatchedScope.ScopeInstanceID, SetOriginalMaterials);
+            }
+            if (currentPatchedScope.MountInstanceID.Some(out var mountInstanceID))
+            {
+                ForPatchedItem(mountInstanceID, SetOriginalMaterials);
+            }
+            Set_DOF_parameters(currentPatchedScope.DOF, currentPatchedScope.OriginalSettingsDOF);
         }
 
         public void OnItemDestroy(AssetPoolObject assetPoolObject)
@@ -550,32 +576,28 @@ namespace SevenBoldPencil.TransparentSights
             var instanceID = assetPoolObject.gameObject.GetInstanceID();
 
             if (CurrentPatchedScope.Some(out var currentPatchedScope) &&
-                currentPatchedScope.InstanceID == instanceID)
+                currentPatchedScope.ScopeInstanceID == instanceID)
             {
                 OnAimingDisabled();
             }
 
-            if (PatchedScopes.Remove(instanceID, out var patchedScope))
+            if (PatchedItems.Remove(instanceID, out var patchedItem))
             {
-                CleanPatchedRenderers(patchedScope.MountRenderers);
-                CleanPatchedRenderers(patchedScope.ScopeRenderers);
+                CleanPatchedRenderers(patchedItem.PatchedRenderers);
             }
         }
 
-        public void CleanPatchedRenderers(List<Option<PatchedRenderer>> renderers)
+        public void CleanPatchedRenderers(List<PatchedRenderer> patchedRenderers)
         {
-            foreach (var patchedRendererOption in renderers)
+            foreach (var patchedRenderer in patchedRenderers)
             {
-                if (patchedRendererOption.Some(out var patchedRenderer))
+                foreach (var patched in patchedRenderer.Patched)
                 {
-                    foreach (var patched in patchedRenderer.Patched)
-                    {
-                        Destroy(patched);
-                    }
+                    Destroy(patched);
                 }
             }
 
-            renderers.Clear();
+            patchedRenderers.Clear();
         }
 
     }
