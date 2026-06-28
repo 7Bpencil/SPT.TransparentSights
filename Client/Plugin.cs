@@ -469,6 +469,12 @@ namespace SevenBoldPencil.TransparentSights
                 {
                     TryPatchItem(bullet, PatchRenderers);
                 }
+                // this one is important for revolvers, test:
+                // ADS, shoot 2 times, un ADS, then ADS again, you will see
+                foreach (var bullet in weaponManagerClass.AmmoPoolObject_1)
+                {
+                    TryPatchItem(bullet, PatchRenderers);
+                }
             }
             else
             {
