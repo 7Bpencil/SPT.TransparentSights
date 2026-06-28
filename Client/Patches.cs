@@ -158,18 +158,8 @@ namespace SevenBoldPencil.TransparentSights
 					return;
 				}
 
-				var scope = __instance.CurrentAimingMod;
-				if (scope == null)
-				{
-					// happens with weapons that have scope "builtin" (PPSH for example)
-					Plugin.Instance.OnAimingDisabled();
-					return;
-				}
-
 				var weaponManagerClass = _firearmController.weaponManagerClass;
-				var scopeTemplateId = scope.Item.StringTemplateId;
-				var scopeTransform = __instance.CurrentScope.Bone.transform.parent;
-				Plugin.Instance.OnAimingEnabled(player, weaponManagerClass, scopeTemplateId, scopeTransform);
+				Plugin.Instance.OnAimingEnabled(player, weaponManagerClass);
 			}
 			catch (Exception e)
 			{
