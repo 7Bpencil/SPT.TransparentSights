@@ -11,6 +11,7 @@ using BepInEx.Logging;
 using EFT;
 using EFT.AssetsManager;
 using EFT.InventoryLogic;
+using EFT.Visual;
 using EFT.UI;
 using EFT.UI.WeaponModding;
 using Newtonsoft.Json;
@@ -31,8 +32,10 @@ namespace SevenBoldPencil.TransparentSights
 {
     public readonly record struct CurrentPatchedScope
     (
-        int ScopeInstanceID,
-        Option<int> MountInstanceID,
+        Player Player,
+        WeaponPrefab WeaponPrefab,
+        string ScopeTemplateId,
+        Transform ScopeTransform,
         DepthOfField DOF,
         SettingsDOF OriginalSettingsDOF
     );
@@ -83,6 +86,7 @@ namespace SevenBoldPencil.TransparentSights
 
         public static Plugin Instance;
 
+        public static ConfigEntry<bool> MakeEntireWeaponTransparent;
         public static ConfigEntry<bool> DOF_enabled;
         public static ConfigEntry<BlurSampleCount> DOF_blurSampleCount;
         public static ConfigEntry<float> DOF_aperture;
@@ -98,6 +102,7 @@ namespace SevenBoldPencil.TransparentSights
         private Dictionary<string, bool> TransparentScopes;
         private Dictionary<string, Dictionary<ItemSpecificationPanel, ContextMenuButton>> ScopesItemPanels;
         private Dictionary<int, PatchedItem> PatchedItems;
+        private List<int> CurrentTransparentItems;
         private Option<CurrentPatchedScope> CurrentPatchedScope;
         private Option<double> LastSaveTime;
 
@@ -106,6 +111,7 @@ namespace SevenBoldPencil.TransparentSights
             Instance = this;
 			LoggerInstance = Logger;
 
+            MakeEntireWeaponTransparent = Config.Bind<bool>("General", "Make entire weapon transparent", false);
             DOF_enabled = Config.Bind<bool>("Depth of Field", "Enabled", true);
             DOF_blurSampleCount = Config.Bind<BlurSampleCount>("Depth of Field", "Blur Sample Count", BlurSampleCount.High);
             DOF_aperture = Config.Bind<float>("Depth of Field", "Aperture", 4, new ConfigDescription("", new AcceptableValueRange<float>(0, 50)));
@@ -114,6 +120,7 @@ namespace SevenBoldPencil.TransparentSights
             DOF_foregroundOverlap = Config.Bind<float>("Depth of Field", "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
             DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 15)));
 
+            MakeEntireWeaponTransparent.SettingChanged += (_, _) => { ChangeMakeEntireWeaponTransparent(); };
             DOF_enabled.SettingChanged += (_, _) => { Change_DOF(Set_DOF_enabled); };
             DOF_blurSampleCount.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
             DOF_aperture.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
@@ -128,9 +135,11 @@ namespace SevenBoldPencil.TransparentSights
             TransparentScopes = LoadTransparentScopes(ConfigPath);
             ScopesItemPanels = new();
             PatchedItems = new();
+            CurrentTransparentItems = new();
 
             new Patch_PWA_method_23().Enable();
             new Patch_AssetPoolObject_OnDestroy().Enable();
+            new Patch_LoddedSkin_Unskin().Enable();
             new Patch_ItemSpecificationPanel_Show().Enable();
             new Patch_ItemSpecificationPanel_Close().Enable();
         }
@@ -364,41 +373,24 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void OnAimingEnabled(string scopeTemplateId, Transform scopeTransform)
+        public void OnAimingEnabled(Player player, WeaponPrefab weaponPrefab, string scopeTemplateId, Transform scopeTransform)
         {
-            var scopeInstanceID = scopeTransform.gameObject.GetInstanceID();
-            if (CurrentPatchedScope.Some(out var currentPatchedScope) &&
-                currentPatchedScope.ScopeInstanceID != scopeInstanceID)
+            if (CurrentPatchedScope.HasValue)
             {
                 OnAimingDisabled();
             }
 
-            if (!TransparentScopes.TryGetValue(scopeTemplateId, out var isMountTransparent))
+            RebuildCurrentTransparentItems
+            (
+                player,
+                weaponPrefab,
+                scopeTemplateId,
+                scopeTransform
+            );
+
+            if (CurrentTransparentItems.Count == 0)
             {
                 return;
-            }
-
-            if (!PatchedItems.ContainsKey(scopeInstanceID) && FindScope(scopeTransform).Some(out var scope))
-            {
-                var patchedRenderers = PatchRenderers(scope);
-                var scopeItem = new PatchedItem(patchedRenderers);
-                PatchedItems.Add(scopeInstanceID, scopeItem);
-            }
-
-            // we have to check mount every time because player can put
-            // scope on different mount, so we have to update it properly,
-            // hopefully its not that expensive
-            Option<int> OptionMountInstanceID = default;
-            if (isMountTransparent && FindMount(scopeTransform).Some(out var mount))
-            {
-				var mountInstanceID = mount.gameObject.GetInstanceID();
-                if (!PatchedItems.ContainsKey(mountInstanceID))
-                {
-                    var patchedRenderers = PatchRenderers(mount);
-                    var mountItem = new PatchedItem(patchedRenderers);
-                    PatchedItems.Add(mountInstanceID, mountItem);
-                }
-                OptionMountInstanceID = new(mountInstanceID);
             }
 
             var DOF = CameraClass.Instance.DepthOfField_0;
@@ -414,20 +406,95 @@ namespace SevenBoldPencil.TransparentSights
             );
             CurrentPatchedScope = new(new CurrentPatchedScope
             (
-                ScopeInstanceID: scopeInstanceID,
-                MountInstanceID: OptionMountInstanceID,
+                Player: player,
+                WeaponPrefab: weaponPrefab,
+                ScopeTemplateId: scopeTemplateId,
+                ScopeTransform: scopeTransform,
                 DOF: DOF,
                 OriginalSettingsDOF: originalSettings
             ));
             TweenScopeToAim(CurrentPatchedScope.Value);
         }
 
+        // weapon can change between OnAimingDisabled and OnAimingEnabled,
+        // so we have to update a list of items that get transparent,
+        // hopefully its not that expensive
+        public void RebuildCurrentTransparentItems(Player player, WeaponPrefab weaponPrefab, string scopeTemplateId, Transform scopeTransform)
+        {
+            if (MakeEntireWeaponTransparent.Value)
+            {
+                {
+                    var hands = player.PlayerBody.BodySkins[EBodyModelPart.Hands];
+                    TryPatchItem(hands, PatchRenderers);
+                }
+                if (weaponPrefab.ContainerCollectionView != null)
+                {
+                    TryPatchItem(weaponPrefab, PatchRenderers);
+                    foreach (var (container, containerData) in weaponPrefab.ContainerCollectionView.ContainerBones)
+                    {
+                        // empty slots or slots with invisible items have nulls (soft armor, helmet plates, etc)
+                        if (containerData.Item == null)
+                        {
+                            continue;
+                        }
+                        if (!containerData.ItemView)
+                        {
+                            continue;
+                        }
+                        if (containerData.ItemView.TryGetComponent<AssetPoolObject>(out var subItemAssetPoolObject))
+                        {
+                            TryPatchItem(subItemAssetPoolObject, PatchRenderers);
+                        }
+                    }
+                }
+            }
+            else if (TransparentScopes.TryGetValue(scopeTemplateId, out var isMountTransparent))
+            {
+                if (FindScope(scopeTransform).Some(out var scope))
+                {
+                    TryPatchItem(scope, PatchRenderers);
+                }
+                if (isMountTransparent && FindMount(scopeTransform).Some(out var mount))
+                {
+                    TryPatchItem(mount, PatchRenderers);
+                }
+            }
+        }
+
+        public void ChangeMakeEntireWeaponTransparent()
+        {
+            if (!CurrentPatchedScope.Some(out var currentPatchedScope))
+            {
+                return;
+            }
+
+            foreach (var tranparentItem in CurrentTransparentItems)
+            {
+                ForPatchedItem(tranparentItem, SetOriginalMaterials);
+            }
+
+            CurrentTransparentItems.Clear();
+            RebuildCurrentTransparentItems
+            (
+                currentPatchedScope.Player,
+                currentPatchedScope.WeaponPrefab,
+                currentPatchedScope.ScopeTemplateId,
+                currentPatchedScope.ScopeTransform
+            );
+
+            foreach (var tranparentItem in CurrentTransparentItems)
+            {
+                ForPatchedItem(tranparentItem, SetPatchedMaterials);
+            }
+        }
+
         public void OnAimingDisabled()
         {
             if (CurrentPatchedScope.Some(out var currentPatchedScope))
             {
-                CurrentPatchedScope = default;
                 TweenScopeFromAim(currentPatchedScope);
+                CurrentTransparentItems.Clear();
+                CurrentPatchedScope = default;
             }
         }
 
@@ -461,13 +528,40 @@ namespace SevenBoldPencil.TransparentSights
             return default;
         }
 
-        public List<PatchedRenderer> PatchRenderers(AssetPoolObject scope)
+        public void TryPatchItem<T>(T item, Func<T, List<PatchedRenderer>> patcher) where T : MonoBehaviour
         {
-            var renderers = scope.Renderers;
+            var instanceID = item.gameObject.GetInstanceID();
+            if (!PatchedItems.ContainsKey(instanceID))
+            {
+                var patchedRenderers = patcher(item);
+                var patchedItem = new PatchedItem(patchedRenderers);
+                PatchedItems.Add(instanceID, patchedItem);
+            }
+            CurrentTransparentItems.Add(instanceID);
+        }
+
+        public List<PatchedRenderer> PatchRenderers(AssetPoolObject assetPoolObject)
+        {
+            var renderers = assetPoolObject.Renderers;
             var result = new List<PatchedRenderer>(renderers.Count);
             foreach (var renderer in renderers)
             {
                 if (PatchRenderer(renderer).Some(out var patchedRenderer))
+                {
+    				result.Add(patchedRenderer);
+                }
+            }
+
+            return result;
+        }
+
+        public List<PatchedRenderer> PatchRenderers(LoddedSkin skin)
+        {
+            var lods = new LoddedSkin_Proxy(skin)._lods;
+            var result = new List<PatchedRenderer>();
+            foreach (var lod in lods)
+            {
+                if (PatchRenderer(lod.SkinnedMeshRenderer).Some(out var patchedRenderer))
                 {
     				result.Add(patchedRenderer);
                 }
@@ -522,12 +616,9 @@ namespace SevenBoldPencil.TransparentSights
 
         public void TweenScopeToAim(CurrentPatchedScope currentPatchedScope)
         {
+            foreach (var tranparentItem in CurrentTransparentItems)
             {
-                ForPatchedItem(currentPatchedScope.ScopeInstanceID, SetPatchedMaterials);
-            }
-            if (currentPatchedScope.MountInstanceID.Some(out var mountInstanceID))
-            {
-                ForPatchedItem(mountInstanceID, SetPatchedMaterials);
+                ForPatchedItem(tranparentItem, SetPatchedMaterials);
             }
             if (DOF_enabled.Value)
             {
@@ -561,26 +652,27 @@ namespace SevenBoldPencil.TransparentSights
 
         public void TweenScopeFromAim(CurrentPatchedScope currentPatchedScope)
         {
+            foreach (var tranparentItem in CurrentTransparentItems)
             {
-                ForPatchedItem(currentPatchedScope.ScopeInstanceID, SetOriginalMaterials);
-            }
-            if (currentPatchedScope.MountInstanceID.Some(out var mountInstanceID))
-            {
-                ForPatchedItem(mountInstanceID, SetOriginalMaterials);
+                ForPatchedItem(tranparentItem, SetOriginalMaterials);
             }
             Set_DOF_parameters(currentPatchedScope.DOF, currentPatchedScope.OriginalSettingsDOF);
         }
 
-        public void OnItemDestroy(AssetPoolObject assetPoolObject)
+        public void OnAssetPoolObjectDestroyed(AssetPoolObject assetPoolObject)
         {
             var instanceID = assetPoolObject.gameObject.GetInstanceID();
+            OnPatchedItemDestroyed(instanceID);
+        }
 
-            if (CurrentPatchedScope.Some(out var currentPatchedScope) &&
-                currentPatchedScope.ScopeInstanceID == instanceID)
-            {
-                OnAimingDisabled();
-            }
+        public void OnSkinDestroyed(LoddedSkin skin)
+        {
+            var instanceID = skin.gameObject.GetInstanceID();
+            OnPatchedItemDestroyed(instanceID);
+        }
 
+        public void OnPatchedItemDestroyed(int instanceID)
+        {
             if (PatchedItems.Remove(instanceID, out var patchedItem))
             {
                 CleanPatchedRenderers(patchedItem.PatchedRenderers);

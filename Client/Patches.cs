@@ -46,8 +46,10 @@ namespace SevenBoldPencil.TransparentSights
         private readonly FirearmController __instance = instance;
 
         private static TypedFieldInfo<FirearmController, Player> __player = new("_player");
+		private static TypedFieldInfo<FirearmController, WeaponManagerClass> __weaponManagerClass = new("weaponManagerClass");
 
         public Player _player { get { return __player.Get(__instance); } set { __player.Set(__instance, value); } }
+        public WeaponManagerClass weaponManagerClass { get { return __weaponManagerClass.Get(__instance); } set { __weaponManagerClass.Set(__instance, value); } }
     }
 
 	public struct WeaponPreview_Proxy(WeaponPreview instance)
@@ -59,6 +61,15 @@ namespace SevenBoldPencil.TransparentSights
 
 		public GameObject gameObject_0 { get { return __gameObject_0.Get(__instance); } set { __gameObject_0.Set(__instance, value); } }
 		public Item item_0 { get { return __item_0.Get(__instance); } set { __item_0.Set(__instance, value); } }
+	}
+
+	public struct LoddedSkin_Proxy(LoddedSkin instance)
+	{
+        private readonly LoddedSkin __instance = instance;
+
+		private static TypedFieldInfo<LoddedSkin, AbstractSkin[]> __lods = new("_lods");
+
+		public AbstractSkin[] _lods { get { return __lods.Get(__instance); } set { __lods.Set(__instance, value); } }
 	}
 
 	public struct ItemSpecificationPanel_Proxy(ItemSpecificationPanel instance)
@@ -146,9 +157,10 @@ namespace SevenBoldPencil.TransparentSights
 					return;
 				}
 
+				var weaponPrefab = _firearmController.weaponManagerClass.WeaponPrefab_0;
 				var scopeTemplateId = scope.Item.StringTemplateId;
 				var scopeTransform = __instance.CurrentScope.Bone.transform.parent;
-				Plugin.Instance.OnAimingEnabled(scopeTemplateId, scopeTransform);
+				Plugin.Instance.OnAimingEnabled(player, weaponPrefab, scopeTemplateId, scopeTransform);
 			}
 			catch (Exception e)
 			{
@@ -157,6 +169,7 @@ namespace SevenBoldPencil.TransparentSights
 		}
 	}
 
+	// this one is usually called when player starts or finishes raid
 	public class Patch_AssetPoolObject_OnDestroy : ModulePatch
 	{
         protected override MethodBase GetTargetMethod()
@@ -167,7 +180,22 @@ namespace SevenBoldPencil.TransparentSights
         [PatchPrefix]
         public static void Prefix(AssetPoolObject __instance)
 		{
-			Plugin.Instance.OnItemDestroy(__instance);
+			Plugin.Instance.OnAssetPoolObjectDestroyed(__instance);
+		}
+	}
+
+	// this is used right before lodded skin is destroyed
+	public class Patch_LoddedSkin_Unskin : ModulePatch
+	{
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(LoddedSkin), nameof(LoddedSkin.Unskin));
+        }
+
+        [PatchPrefix]
+        public static void Prefix(LoddedSkin __instance)
+		{
+			Plugin.Instance.OnSkinDestroyed(__instance);
 		}
 	}
 
