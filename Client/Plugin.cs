@@ -142,6 +142,8 @@ namespace SevenBoldPencil.TransparentSights
             new Patch_LoddedSkin_Unskin().Enable();
             new Patch_ItemSpecificationPanel_Show().Enable();
             new Patch_ItemSpecificationPanel_Close().Enable();
+            new Patch_WeaponManagerClass_SetupMod().Enable();
+            new Patch_WeaponManagerClass_RemoveMod().Enable();
         }
 
         public void Change_DOF(Action<DepthOfField> change)
@@ -528,7 +530,7 @@ namespace SevenBoldPencil.TransparentSights
             return default;
         }
 
-        public void TryPatchItem<T>(T item, Func<T, List<PatchedRenderer>> patcher) where T : MonoBehaviour
+        public int TryPatchItem<T>(T item, Func<T, List<PatchedRenderer>> patcher) where T : MonoBehaviour
         {
             var instanceID = item.gameObject.GetInstanceID();
             if (!PatchedItems.ContainsKey(instanceID))
@@ -538,6 +540,7 @@ namespace SevenBoldPencil.TransparentSights
                 PatchedItems.Add(instanceID, patchedItem);
             }
             CurrentTransparentItems.Add(instanceID);
+            return instanceID;
         }
 
         public List<PatchedRenderer> PatchRenderers(AssetPoolObject assetPoolObject)
@@ -657,6 +660,47 @@ namespace SevenBoldPencil.TransparentSights
                 ForPatchedItem(tranparentItem, SetOriginalMaterials);
             }
             Set_DOF_parameters(currentPatchedScope.DOF, currentPatchedScope.OriginalSettingsDOF);
+        }
+
+        public void OnSetupMod(WeaponPrefab weaponPrefab, AssetPoolObject assetPoolObject)
+        {
+            if (!MakeEntireWeaponTransparent.Value)
+            {
+                return;
+            }
+            if (!CurrentPatchedScope.Some(out var currentPatchedScope))
+            {
+                return;
+            }
+            if (currentPatchedScope.WeaponPrefab != weaponPrefab)
+            {
+                return;
+            }
+
+            var instanceID = TryPatchItem(assetPoolObject, PatchRenderers);
+            ForPatchedItem(instanceID, SetPatchedMaterials);
+        }
+
+        public void OnRemoveMod(WeaponPrefab weaponPrefab, AssetPoolObject assetPoolObject)
+        {
+            if (!MakeEntireWeaponTransparent.Value)
+            {
+                return;
+            }
+            if (!CurrentPatchedScope.Some(out var currentPatchedScope))
+            {
+                return;
+            }
+            if (currentPatchedScope.WeaponPrefab != weaponPrefab)
+            {
+                return;
+            }
+
+            var instanceID = assetPoolObject.gameObject.GetInstanceID();
+            if (CurrentTransparentItems.Remove(instanceID))
+            {
+                ForPatchedItem(instanceID, SetOriginalMaterials);
+            }
         }
 
         public void OnAssetPoolObjectDestroyed(AssetPoolObject assetPoolObject)

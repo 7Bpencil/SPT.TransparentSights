@@ -266,4 +266,41 @@ namespace SevenBoldPencil.TransparentSights
 			Plugin.Instance.RemovePanel(templateId, __instance);
         }
     }
+
+	public class Patch_WeaponManagerClass_SetupMod : ModulePatch
+	{
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(WeaponManagerClass), nameof(WeaponManagerClass.SetupMod));
+        }
+
+        [PatchPostfix]
+        private static void Postfix(WeaponManagerClass __instance, Slot slot, GameObject modObject)
+		{
+			if (modObject.TryGetComponent<AssetPoolObject>(out var assetPoolObject))
+			{
+				Plugin.Instance.OnSetupMod(__instance.WeaponPrefab_0, assetPoolObject);
+			}
+		}
+	}
+
+	public class Patch_WeaponManagerClass_RemoveMod : ModulePatch
+	{
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(WeaponManagerClass), nameof(WeaponManagerClass.RemoveMod));
+        }
+
+        [PatchPrefix]
+        private static void Prefix(WeaponManagerClass __instance, Slot slot)
+		{
+			var viewForSlot = __instance.Gclass768_0.GetViewForSlot(slot);
+			var index = viewForSlot.Bone.childCount - 1;
+			var child = viewForSlot.Bone.GetChild(index);
+			if (child.TryGetComponent<AssetPoolObject>(out var assetPoolObject))
+			{
+				Plugin.Instance.OnRemoveMod(__instance.WeaponPrefab_0, assetPoolObject);
+			}
+		}
+	}
 }
