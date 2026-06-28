@@ -316,4 +316,20 @@ namespace SevenBoldPencil.TransparentSights
 			Plugin.Instance.SetRoundIntoWeapon(__instance, chamberNumber);
 		}
 	}
+
+#if DEBUG
+	public class Patch_GClass2037_DisableAimingOnReload : ModulePatch
+	{
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(Player.FirearmController.GClass2037), nameof(Player.FirearmController.GClass2037.DisableAimingOnReload));
+        }
+
+        [PatchPrefix]
+        private static bool Prefix()
+		{
+			return false;
+		}
+	}
+#endif
 }

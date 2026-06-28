@@ -150,6 +150,9 @@ namespace SevenBoldPencil.TransparentSights
             new Patch_WeaponManagerClass_SetupMod().Enable();
             new Patch_WeaponManagerClass_RemoveMod().Enable();
             new Patch_WeaponManagerClass_SetRoundIntoWeapon().Enable();
+#if DEBUG
+            new Patch_GClass2037_DisableAimingOnReload().Enable();
+#endif
         }
 
         public void Change_DOF(Action<DepthOfField> change)
@@ -393,6 +396,8 @@ namespace SevenBoldPencil.TransparentSights
 
         public void OnAimingEnabled(Player player, WeaponManagerClass weaponManagerClass)
         {
+            LogInfo("OnAimingEnabled");
+
             if (CurrentPatchedScope.HasValue)
             {
                 OnAimingDisabled();
@@ -585,6 +590,7 @@ namespace SevenBoldPencil.TransparentSights
         {
             if (CurrentPatchedScope.Some(out var currentPatchedScope))
             {
+                LogInfo("OnAimingDisabled");
                 foreach (var tranparentItem in CurrentTransparentItems)
                 {
                     ForPatchedItem(tranparentItem, SetOriginalMaterials);
@@ -680,11 +686,15 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return default;
             }
+
             var oldMaterials = renderer.materials;
             if (oldMaterials == null)
             {
                 return default;
             }
+
+            LogInfo("patch renderer: ", renderer.name);
+
             var newMaterials = new Material[oldMaterials.Length];
             for (var i = 0; i < oldMaterials.Length; i++)
             {
@@ -758,6 +768,8 @@ namespace SevenBoldPencil.TransparentSights
             }
 
             TryPatchMod(assetPoolObject);
+
+			LogInfo("OnSetupMod: ", assetPoolObject.name);
         }
 
         public void OnRemoveMod(WeaponPrefab weaponPrefab, AssetPoolObject assetPoolObject)
@@ -781,6 +793,8 @@ namespace SevenBoldPencil.TransparentSights
                 ForPatchedItem(instanceID, SetOriginalMaterials);
                 // TODO not sure about bullets in magazines
             }
+
+			LogInfo("OnRemoveMod: ", assetPoolObject.name);
         }
 
         public void SetRoundIntoWeapon(WeaponManagerClass weaponManagerClass, int chamberNumber)
@@ -800,6 +814,8 @@ namespace SevenBoldPencil.TransparentSights
 
             var bullet = weaponManagerClass.AmmoPoolObject_0[chamberNumber];
             TryPatchItem(bullet, PatchRenderers);
+
+			LogInfo("SetRoundIntoWeapon");
         }
 
         public void OnAssetPoolObjectDestroyed(AssetPoolObject assetPoolObject)
@@ -819,6 +835,7 @@ namespace SevenBoldPencil.TransparentSights
             if (PatchedItems.Remove(instanceID, out var patchedItem))
             {
                 CleanPatchedRenderers(patchedItem.PatchedRenderers);
+    			LogInfo("OnPatchedItemDestroyed: ", instanceID);
             }
         }
 
@@ -833,6 +850,27 @@ namespace SevenBoldPencil.TransparentSights
             }
 
             patchedRenderers.Clear();
+        }
+
+        public void LogInfo<A>(A a)
+        {
+#if DEBUG
+			Logger.LogInfo(a);
+#endif
+        }
+
+        public void LogInfo<A, B>(A a, B b)
+        {
+#if DEBUG
+			Logger.LogInfo($"{a} {b}");
+#endif
+        }
+
+        public void LogInfo<A, B, C>(A a, B b, C c)
+        {
+#if DEBUG
+			Logger.LogInfo($"{a} {b} {c}");
+#endif
         }
     }
 }
