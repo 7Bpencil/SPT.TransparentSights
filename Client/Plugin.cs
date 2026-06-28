@@ -75,7 +75,7 @@ namespace SevenBoldPencil.TransparentSights
 		MODES_COUNT,
 	}
 
-    [BepInPlugin("7Bpencil.TransparentSights", "7Bpencil.TransparentSights", "0.1.0")]
+    [BepInPlugin("7Bpencil.TransparentSights", "7Bpencil.TransparentSights", "0.1.1")]
     public class Plugin : BaseUnityPlugin
     {
         public static readonly int _Cull = Shader.PropertyToID("_Cull");
