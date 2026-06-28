@@ -33,7 +33,7 @@ namespace SevenBoldPencil.TransparentSights
     public readonly record struct CurrentPatchedScope
     (
         Player Player,
-        WeaponPrefab WeaponPrefab,
+        WeaponManagerClass WeaponManagerClass,
         string ScopeTemplateId,
         Transform ScopeTransform,
         DepthOfField DOF,
@@ -144,6 +144,7 @@ namespace SevenBoldPencil.TransparentSights
             new Patch_ItemSpecificationPanel_Close().Enable();
             new Patch_WeaponManagerClass_SetupMod().Enable();
             new Patch_WeaponManagerClass_RemoveMod().Enable();
+            new Patch_WeaponManagerClass_SetRoundIntoWeapon().Enable();
         }
 
         public void Change_DOF(Action<DepthOfField> change)
@@ -268,6 +269,9 @@ namespace SevenBoldPencil.TransparentSights
             SafeIO.WriteAllTextAsync(filePath, json);
         }
 
+#if DEBUG
+        public bool IsFrozen;
+#endif
         public void Update()
         {
             // SaveLagTime and LastSaveTime are needed to not write to file
@@ -281,6 +285,13 @@ namespace SevenBoldPencil.TransparentSights
                     LastSaveTime = default;
                 }
             }
+#if DEBUG
+            if (Input.GetKeyDown(KeyCode.F13))
+            {
+                IsFrozen = !IsFrozen;
+                Time.timeScale = IsFrozen ? 0.01f : 1f;
+            }
+#endif
         }
 
         public static ScopeTransparencyMode GetNextMode(ScopeTransparencyMode value)
@@ -375,7 +386,7 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void OnAimingEnabled(Player player, WeaponPrefab weaponPrefab, string scopeTemplateId, Transform scopeTransform)
+        public void OnAimingEnabled(Player player, WeaponManagerClass weaponManagerClass, string scopeTemplateId, Transform scopeTransform)
         {
             if (CurrentPatchedScope.HasValue)
             {
@@ -385,7 +396,7 @@ namespace SevenBoldPencil.TransparentSights
             RebuildCurrentTransparentItems
             (
                 player,
-                weaponPrefab,
+                weaponManagerClass,
                 scopeTemplateId,
                 scopeTransform
             );
@@ -409,19 +420,22 @@ namespace SevenBoldPencil.TransparentSights
             CurrentPatchedScope = new(new CurrentPatchedScope
             (
                 Player: player,
-                WeaponPrefab: weaponPrefab,
+                WeaponManagerClass: weaponManagerClass,
                 ScopeTemplateId: scopeTemplateId,
                 ScopeTransform: scopeTransform,
                 DOF: DOF,
                 OriginalSettingsDOF: originalSettings
             ));
-            TweenScopeToAim(CurrentPatchedScope.Value);
+            if (DOF_enabled.Value)
+            {
+                Set_DOF_parameters_config(DOF);
+            }
         }
 
         // weapon can change between OnAimingDisabled and OnAimingEnabled,
         // so we have to update a list of items that get transparent,
         // hopefully its not that expensive
-        public void RebuildCurrentTransparentItems(Player player, WeaponPrefab weaponPrefab, string scopeTemplateId, Transform scopeTransform)
+        public void RebuildCurrentTransparentItems(Player player, WeaponManagerClass weaponManagerClass, string scopeTemplateId, Transform scopeTransform)
         {
             if (MakeEntireWeaponTransparent.Value)
             {
@@ -429,9 +443,10 @@ namespace SevenBoldPencil.TransparentSights
                     var hands = player.PlayerBody.BodySkins[EBodyModelPart.Hands];
                     TryPatchItem(hands, PatchRenderers);
                 }
+                var weaponPrefab = weaponManagerClass.WeaponPrefab_0;
+                TryPatchItem(weaponPrefab, PatchRenderers);
                 if (weaponPrefab.ContainerCollectionView != null)
                 {
-                    TryPatchItem(weaponPrefab, PatchRenderers);
                     foreach (var (container, containerData) in weaponPrefab.ContainerCollectionView.ContainerBones)
                     {
                         // empty slots or slots with invisible items have nulls (soft armor, helmet plates, etc)
@@ -445,9 +460,13 @@ namespace SevenBoldPencil.TransparentSights
                         }
                         if (containerData.ItemView.TryGetComponent<AssetPoolObject>(out var subItemAssetPoolObject))
                         {
-                            TryPatchItem(subItemAssetPoolObject, PatchRenderers);
+                            TryPatchMod(subItemAssetPoolObject);
                         }
                     }
+                }
+                foreach (var bullet in weaponManagerClass.AmmoPoolObject_0)
+                {
+                    TryPatchItem(bullet, PatchRenderers);
                 }
             }
             else if (TransparentScopes.TryGetValue(scopeTemplateId, out var isMountTransparent))
@@ -459,6 +478,30 @@ namespace SevenBoldPencil.TransparentSights
                 if (isMountTransparent && FindMount(scopeTransform).Some(out var mount))
                 {
                     TryPatchItem(mount, PatchRenderers);
+                }
+            }
+        }
+
+        public void TryPatchMod(AssetPoolObject assetPoolObject)
+        {
+            TryPatchItem(assetPoolObject, PatchRenderers);
+
+            if (assetPoolObject is MagazineInHandsVisualController mag)
+            {
+                var magazineInHandsVisual = new MagazineInHandsVisualController_Proxy(mag).gclass2088_0;
+                if (magazineInHandsVisual is GClass2091 boxMagazine)
+                {
+                    foreach (var bullet in boxMagazine.List_0)
+                    {
+                        TryPatchItem(bullet, PatchRenderers);
+                    }
+                }
+                if (magazineInHandsVisual is GClass2089 beltBoxMagazine)
+                {
+                    foreach (var bullet in beltBoxMagazine.List_0)
+                    {
+                        TryPatchItem(bullet, PatchRenderers);
+                    }
                 }
             }
         }
@@ -479,22 +522,21 @@ namespace SevenBoldPencil.TransparentSights
             RebuildCurrentTransparentItems
             (
                 currentPatchedScope.Player,
-                currentPatchedScope.WeaponPrefab,
+                currentPatchedScope.WeaponManagerClass,
                 currentPatchedScope.ScopeTemplateId,
                 currentPatchedScope.ScopeTransform
             );
-
-            foreach (var tranparentItem in CurrentTransparentItems)
-            {
-                ForPatchedItem(tranparentItem, SetPatchedMaterials);
-            }
         }
 
         public void OnAimingDisabled()
         {
             if (CurrentPatchedScope.Some(out var currentPatchedScope))
             {
-                TweenScopeFromAim(currentPatchedScope);
+                foreach (var tranparentItem in CurrentTransparentItems)
+                {
+                    ForPatchedItem(tranparentItem, SetOriginalMaterials);
+                }
+                Set_DOF_parameters(currentPatchedScope.DOF, currentPatchedScope.OriginalSettingsDOF);
                 CurrentTransparentItems.Clear();
                 CurrentPatchedScope = default;
             }
@@ -530,8 +572,12 @@ namespace SevenBoldPencil.TransparentSights
             return default;
         }
 
-        public int TryPatchItem<T>(T item, Func<T, List<PatchedRenderer>> patcher) where T : MonoBehaviour
+        public void TryPatchItem<T>(T item, Func<T, List<PatchedRenderer>> patcher) where T : MonoBehaviour
         {
+            if (!item)
+            {
+                return;
+            }
             var instanceID = item.gameObject.GetInstanceID();
             if (!PatchedItems.ContainsKey(instanceID))
             {
@@ -540,7 +586,7 @@ namespace SevenBoldPencil.TransparentSights
                 PatchedItems.Add(instanceID, patchedItem);
             }
             CurrentTransparentItems.Add(instanceID);
-            return instanceID;
+            ForPatchedItem(instanceID, SetPatchedMaterials);
         }
 
         public List<PatchedRenderer> PatchRenderers(AssetPoolObject assetPoolObject)
@@ -617,18 +663,6 @@ namespace SevenBoldPencil.TransparentSights
                 shaderName == "CW FX/BackLens";
         }
 
-        public void TweenScopeToAim(CurrentPatchedScope currentPatchedScope)
-        {
-            foreach (var tranparentItem in CurrentTransparentItems)
-            {
-                ForPatchedItem(tranparentItem, SetPatchedMaterials);
-            }
-            if (DOF_enabled.Value)
-            {
-                Set_DOF_parameters_config(currentPatchedScope.DOF);
-            }
-        }
-
         public void ForPatchedItem(int instanceID, Action<PatchedItem> doAction)
         {
             if (PatchedItems.TryGetValue(instanceID, out var patchedItem))
@@ -653,15 +687,6 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void TweenScopeFromAim(CurrentPatchedScope currentPatchedScope)
-        {
-            foreach (var tranparentItem in CurrentTransparentItems)
-            {
-                ForPatchedItem(tranparentItem, SetOriginalMaterials);
-            }
-            Set_DOF_parameters(currentPatchedScope.DOF, currentPatchedScope.OriginalSettingsDOF);
-        }
-
         public void OnSetupMod(WeaponPrefab weaponPrefab, AssetPoolObject assetPoolObject)
         {
             if (!MakeEntireWeaponTransparent.Value)
@@ -672,13 +697,12 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return;
             }
-            if (currentPatchedScope.WeaponPrefab != weaponPrefab)
+            if (currentPatchedScope.WeaponManagerClass.WeaponPrefab_0 != weaponPrefab)
             {
                 return;
             }
 
-            var instanceID = TryPatchItem(assetPoolObject, PatchRenderers);
-            ForPatchedItem(instanceID, SetPatchedMaterials);
+            TryPatchMod(assetPoolObject);
         }
 
         public void OnRemoveMod(WeaponPrefab weaponPrefab, AssetPoolObject assetPoolObject)
@@ -691,7 +715,7 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return;
             }
-            if (currentPatchedScope.WeaponPrefab != weaponPrefab)
+            if (currentPatchedScope.WeaponManagerClass.WeaponPrefab_0 != weaponPrefab)
             {
                 return;
             }
@@ -700,7 +724,27 @@ namespace SevenBoldPencil.TransparentSights
             if (CurrentTransparentItems.Remove(instanceID))
             {
                 ForPatchedItem(instanceID, SetOriginalMaterials);
+                // TODO not sure about bullets in magazines
             }
+        }
+
+        public void SetRoundIntoWeapon(WeaponManagerClass weaponManagerClass, int chamberNumber)
+        {
+            if (!MakeEntireWeaponTransparent.Value)
+            {
+                return;
+            }
+            if (!CurrentPatchedScope.Some(out var currentPatchedScope))
+            {
+                return;
+            }
+            if (currentPatchedScope.WeaponManagerClass != weaponManagerClass)
+            {
+                return;
+            }
+
+            var bullet = weaponManagerClass.AmmoPoolObject_0[chamberNumber];
+            TryPatchItem(bullet, PatchRenderers);
         }
 
         public void OnAssetPoolObjectDestroyed(AssetPoolObject assetPoolObject)
@@ -735,6 +779,5 @@ namespace SevenBoldPencil.TransparentSights
 
             patchedRenderers.Clear();
         }
-
     }
 }

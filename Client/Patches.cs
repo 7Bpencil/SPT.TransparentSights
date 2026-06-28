@@ -72,6 +72,15 @@ namespace SevenBoldPencil.TransparentSights
 		public AbstractSkin[] _lods { get { return __lods.Get(__instance); } set { __lods.Set(__instance, value); } }
 	}
 
+	public struct MagazineInHandsVisualController_Proxy(MagazineInHandsVisualController instance)
+	{
+        private readonly MagazineInHandsVisualController __instance = instance;
+
+		private static TypedFieldInfo<MagazineInHandsVisualController, GClass2088> _gclass2088_0 = new("gclass2088_0");
+
+		public GClass2088 gclass2088_0 { get { return _gclass2088_0.Get(__instance); } set { _gclass2088_0.Set(__instance, value); } }
+	}
+
 	public struct ItemSpecificationPanel_Proxy(ItemSpecificationPanel instance)
 	{
         private readonly ItemSpecificationPanel __instance = instance;
@@ -157,10 +166,10 @@ namespace SevenBoldPencil.TransparentSights
 					return;
 				}
 
-				var weaponPrefab = _firearmController.weaponManagerClass.WeaponPrefab_0;
+				var weaponManagerClass = _firearmController.weaponManagerClass;
 				var scopeTemplateId = scope.Item.StringTemplateId;
 				var scopeTransform = __instance.CurrentScope.Bone.transform.parent;
-				Plugin.Instance.OnAimingEnabled(player, weaponPrefab, scopeTemplateId, scopeTransform);
+				Plugin.Instance.OnAimingEnabled(player, weaponManagerClass, scopeTemplateId, scopeTransform);
 			}
 			catch (Exception e)
 			{
@@ -301,6 +310,20 @@ namespace SevenBoldPencil.TransparentSights
 			{
 				Plugin.Instance.OnRemoveMod(__instance.WeaponPrefab_0, assetPoolObject);
 			}
+		}
+	}
+
+	public class Patch_WeaponManagerClass_SetRoundIntoWeapon : ModulePatch
+	{
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(WeaponManagerClass), nameof(WeaponManagerClass.SetRoundIntoWeapon));
+        }
+
+        [PatchPostfix]
+		private static void Postfix(WeaponManagerClass __instance, AmmoItemClass ammo, int chamberNumber = 0)
+		{
+			Plugin.Instance.SetRoundIntoWeapon(__instance, chamberNumber);
 		}
 	}
 }
