@@ -14,3 +14,5 @@ Alpha version, please share feedback in comments
     - Open F12 menu and untick `Depth of Field/Enabled`
 3) I like blur, how can I make it more blurry?
     - Open F12 menu and set `Depth of Field/maxBlurSize` to higher value
+4) How do I make entire weapon transparent?
+    - Open F12 menu and tick `Make entire weapon transparent`
