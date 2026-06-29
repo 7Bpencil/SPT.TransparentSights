@@ -4,6 +4,8 @@
 
 Alpha version, please share feedback in comments
 
+![](https://raw.githubusercontent.com/7Bpencil/SPT.WeaponCamoAndStickers/refs/heads/master/previews/krechet.png)
+
 ## FAQ
 
 1) My scope does not become transparent
