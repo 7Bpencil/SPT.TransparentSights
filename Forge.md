@@ -4,7 +4,9 @@
 
 Alpha version, please share feedback in comments
 
-![](https://raw.githubusercontent.com/7Bpencil/SPT.TransparentSights/refs/heads/master/previews/krechet.png)
+![](https://raw.githubusercontent.com/7Bpencil/SPT.TransparentSights/refs/heads/master/previews/eotech.png)
+![](https://raw.githubusercontent.com/7Bpencil/SPT.TransparentSights/refs/heads/master/previews/acro.png)
+![](https://raw.githubusercontent.com/7Bpencil/SPT.TransparentSights/refs/heads/master/previews/romeo.png)
 
 ## FAQ
 
