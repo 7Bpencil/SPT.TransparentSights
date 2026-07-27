@@ -16,6 +16,7 @@
     <Reference Include="Sirenix.Serialization" />
     <Reference Include="Unity.TextMeshPro" />
     <Reference Include="UnityEngine" />
+    <Reference Include="UnityEngine.InputLegacyModule" />
     <Reference Include="UnityEngine.CoreModule" />
   </ItemGroup>
 
