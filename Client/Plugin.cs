@@ -449,7 +449,7 @@ namespace SevenBoldPencil.TransparentSights
                     var hands = player.PlayerBody.BodySkins[EBodyModelPart.Hands];
                     TryPatchItem(hands, PatchRenderers);
                 }
-                var weaponPrefab = weaponManagerClass.WeaponPrefab_0;
+                var weaponPrefab = weaponManagerClass.WeaponPrefab;
                 TryPatchItem(weaponPrefab, PatchRenderers);
                 if (weaponPrefab.ContainerCollectionView != null)
                 {
@@ -763,7 +763,7 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return;
             }
-            if (currentPatchedScope.WeaponManagerClass.WeaponPrefab_0 != weaponPrefab)
+            if (currentPatchedScope.WeaponManagerClass.WeaponPrefab != weaponPrefab)
             {
                 return;
             }
@@ -783,7 +783,7 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return;
             }
-            if (currentPatchedScope.WeaponManagerClass.WeaponPrefab_0 != weaponPrefab)
+            if (currentPatchedScope.WeaponManagerClass.WeaponPrefab != weaponPrefab)
             {
                 return;
             }

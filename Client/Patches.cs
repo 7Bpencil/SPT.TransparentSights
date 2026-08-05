@@ -278,7 +278,7 @@ namespace SevenBoldPencil.TransparentSights
 		{
 			if (modObject.TryGetComponent<AssetPoolObject>(out var assetPoolObject))
 			{
-				Plugin.Instance.OnSetupMod(__instance.WeaponPrefab_0, assetPoolObject);
+				Plugin.Instance.OnSetupMod(__instance.WeaponPrefab, assetPoolObject);
 			}
 		}
 	}
@@ -298,7 +298,7 @@ namespace SevenBoldPencil.TransparentSights
 			var child = viewForSlot.Bone.GetChild(index);
 			if (child.TryGetComponent<AssetPoolObject>(out var assetPoolObject))
 			{
-				Plugin.Instance.OnRemoveMod(__instance.WeaponPrefab_0, assetPoolObject);
+				Plugin.Instance.OnRemoveMod(__instance.WeaponPrefab, assetPoolObject);
 			}
 		}
 	}
