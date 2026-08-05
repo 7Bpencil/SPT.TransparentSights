@@ -391,7 +391,7 @@ namespace SevenBoldPencil.TransparentSights
             foreach (var (panel, toggleButton) in panels)
             {
                 new ContextMenuButton_Proxy(toggleButton)._text.text = modeName;
-                panel.method_5();
+                panel.RecreateAttributeBars();
             }
         }
 
@@ -471,13 +471,13 @@ namespace SevenBoldPencil.TransparentSights
                         }
                     }
                 }
-                foreach (var bullet in weaponManagerClass.AmmoPoolObject_0)
+                foreach (var bullet in weaponManagerClass._ammoObjectInWeapon)
                 {
                     TryPatchItem(bullet, PatchRenderers);
                 }
                 // this one is important for revolvers, test:
                 // ADS, shoot 2 times, un ADS, then ADS again, you will see
-                foreach (var bullet in weaponManagerClass.AmmoPoolObject_1)
+                foreach (var bullet in weaponManagerClass._shellsInShellPort)
                 {
                     TryPatchItem(bullet, PatchRenderers);
                 }
@@ -516,16 +516,16 @@ namespace SevenBoldPencil.TransparentSights
             if (assetPoolObject is MagazineInHandsVisualController mag)
             {
                 var magazineInHandsVisual = new MagazineInHandsVisualController_Proxy(mag).gclass2088_0;
-                if (magazineInHandsVisual is GClass2091 boxMagazine)
+                if (magazineInHandsVisual is SpringMagazineVisual boxMagazine)
                 {
-                    foreach (var bullet in boxMagazine.List_0)
+                    foreach (var bullet in boxMagazine._ammoPoolObjects)
                     {
                         TryPatchItem(bullet, PatchRenderers);
                     }
                 }
-                if (magazineInHandsVisual is GClass2089 beltBoxMagazine)
+                if (magazineInHandsVisual is BeltMagazineInHandsVisual beltBoxMagazine)
                 {
-                    foreach (var bullet in beltBoxMagazine.List_0)
+                    foreach (var bullet in beltBoxMagazine._ammoPoolObjects)
                     {
                         TryPatchItem(bullet, PatchRenderers);
                     }
@@ -814,7 +814,7 @@ namespace SevenBoldPencil.TransparentSights
                 return;
             }
 
-            var bullet = weaponManagerClass.AmmoPoolObject_0[chamberNumber];
+            var bullet = weaponManagerClass._ammoObjectInWeapon[chamberNumber];
             TryPatchItem(bullet, PatchRenderers);
 
 			LogInfo("SetRoundIntoWeapon");

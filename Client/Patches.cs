@@ -13,6 +13,7 @@ using EFT.InventoryLogic;
 using EFT.Visual;
 using EFT.UI;
 using EFT.UI.WeaponModding;
+using EFT.Utilities;
 using SevenBoldPencil.Common;
 using System;
 using System.Reflection;
@@ -31,12 +32,12 @@ namespace SevenBoldPencil.TransparentSights
         private readonly ProceduralWeaponAnimation __instance = instance;
 
         private static TypedFieldInfo<ProceduralWeaponAnimation, FirearmController> __firearmController = new("_firearmController");
-        private static TypedFieldInfo<ProceduralWeaponAnimation, GInterface200> __firearmAnimationData = new("_firearmAnimationData");
+        private static TypedFieldInfo<ProceduralWeaponAnimation, IFirearmAnimationDataRepresenter> __firearmAnimationData = new("_firearmAnimationData");
         private static TypedFieldInfo<ProceduralWeaponAnimation, bool> __isAiming = new("_isAiming");
         private static TypedFieldInfo<ProceduralWeaponAnimation, int> __pose = new("_pose");
 
         public FirearmController _firearmController { get { return __firearmController.Get(__instance); } set { __firearmController.Set(__instance, value); } }
-        public GInterface200 _firearmAnimationData { get { return __firearmAnimationData.Get(__instance); } set { __firearmAnimationData.Set(__instance, value); } }
+        public IFirearmAnimationDataRepresenter _firearmAnimationData { get { return __firearmAnimationData.Get(__instance); } set { __firearmAnimationData.Set(__instance, value); } }
         public bool _isAiming { get { return __isAiming.Get(__instance); } set { __isAiming.Set(__instance, value); } }
         public int _pose { get { return __pose.Get(__instance); } set { __pose.Set(__instance, value); } }
     }
@@ -65,16 +66,16 @@ namespace SevenBoldPencil.TransparentSights
 	{
         private readonly MagazineInHandsVisualController __instance = instance;
 
-		private static TypedFieldInfo<MagazineInHandsVisualController, GClass2088> _gclass2088_0 = new("gclass2088_0");
+		private static TypedFieldInfo<MagazineInHandsVisualController, MagazineInHandsVisual> _gclass2088_0 = new("_magazineInHandsVisual");
 
-		public GClass2088 gclass2088_0 { get { return _gclass2088_0.Get(__instance); } set { _gclass2088_0.Set(__instance, value); } }
+		public MagazineInHandsVisual gclass2088_0 { get { return _gclass2088_0.Get(__instance); } set { _gclass2088_0.Set(__instance, value); } }
 	}
 
 	public struct ItemSpecificationPanel_Proxy(ItemSpecificationPanel instance)
 	{
         private readonly ItemSpecificationPanel __instance = instance;
 
-		private static TypedFieldInfo<ItemSpecificationPanel, Item> __item_0 = new("item_0");
+		private static TypedFieldInfo<ItemSpecificationPanel, Item> __item_0 = new("_item");
 
 		public Item item_0 { get { return __item_0.Get(__instance); } set { __item_0.Set(__instance, value); } }
 	}
@@ -103,7 +104,7 @@ namespace SevenBoldPencil.TransparentSights
 	{
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(ProceduralWeaponAnimation), nameof(ProceduralWeaponAnimation.method_23));
+            return AccessTools.Method(typeof(ProceduralWeaponAnimation), nameof(ProceduralWeaponAnimation.OnAimOrPoseChanged));
         }
 
         [PatchPostfix]
@@ -147,7 +148,7 @@ namespace SevenBoldPencil.TransparentSights
 					return;
 				}
 
-				var weaponManagerClass = _firearmController.weaponManagerClass;
+				var weaponManagerClass = firearmController.Firearms;
 				Plugin.Instance.OnAimingEnabled(player, weaponManagerClass);
 			}
 			catch (Exception e)
@@ -203,7 +204,7 @@ namespace SevenBoldPencil.TransparentSights
 			{
 				return;
 			}
-			if (item.Template is not SightsTemplateClass)
+			if (item.Template is not SightModTemplate)
             {
                 return;
             }
@@ -218,12 +219,12 @@ namespace SevenBoldPencil.TransparentSights
 
 			var buttonsContainer = new InteractionButtonsContainer_Proxy(____interactionButtonsContainer);
 
-            var sprite = CacheResourcesPopAbstractClass.Pop<Sprite>("Characteristics/Icons/Modding");
+            var sprite = ResourcesCache.Pop<Sprite>("Characteristics/Icons/Modding");
 			var startName = Plugin.Instance.GetScopeTransparencyModeName(templateId);
             var toggleButton = (ContextMenuButton)UnityEngine.Object.Instantiate(buttonsContainer._buttonTemplate, buttonsContainer._buttonsContainer, false);
 
             toggleButton.Show(startName, null, sprite, OnClick, null);
-            ____interactionButtonsContainer.method_5(toggleButton);
+            ____interactionButtonsContainer.BindButton(toggleButton);
 
 			Plugin.Instance.AddPanel(templateId, __instance, toggleButton);
         }
@@ -245,7 +246,7 @@ namespace SevenBoldPencil.TransparentSights
 			{
 				return;
 			}
-			if (item.Template is not SightsTemplateClass)
+			if (item.Template is not SightModTemplate)
             {
                 return;
             }
@@ -282,7 +283,7 @@ namespace SevenBoldPencil.TransparentSights
         [PatchPrefix]
         private static void Prefix(Firearms __instance, Slot slot)
 		{
-			var viewForSlot = __instance.Gclass768_0.GetViewForSlot(slot);
+			var viewForSlot = __instance.ContainerCollectionView.GetViewForSlot(slot);
 			var index = viewForSlot.Bone.childCount - 1;
 			var child = viewForSlot.Bone.GetChild(index);
 			if (child.TryGetComponent<AssetPoolObject>(out var assetPoolObject))
@@ -311,7 +312,7 @@ namespace SevenBoldPencil.TransparentSights
 	{
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(Player.FirearmController.GClass2037), nameof(Player.FirearmController.GClass2037.DisableAimingOnReload));
+            return AccessTools.Method(typeof(Player.FirearmController.Idling), nameof(Player.FirearmController.Idling.DisableAimingOnReload));
         }
 
         [PatchPrefix]
