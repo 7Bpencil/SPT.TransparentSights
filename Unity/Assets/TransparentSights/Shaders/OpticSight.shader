@@ -1,4 +1,4 @@
-Shader "CW FX/OpticSight" {
+Shader "TransparentSights/OpticSight" {
     Properties {
         _MarkTex ("Mark Texture", 2D) = "black" {}
         _MaskTex ("Mask Texture(A)", 2D) = "white" {}
@@ -292,7 +292,7 @@ Shader "CW FX/OpticSight" {
         }
         Pass {
             Name "Camera"
-            ColorMask RGB
+			Blend SrcAlpha OneMinusSrcAlpha
             ZClip On
             ZTest Always
             ZWrite Off
@@ -481,6 +481,7 @@ Shader "CW FX/OpticSight" {
                 float4 tmp0;
                 float4 tmp1;
                 tmp0 = tex2D(_CamTex, inp.texcoord.xy);
+				tmp0.a = 0.25;
                 tmp1 = tex2D(_MaskTex2, inp.texcoord.xy);
                 tmp0 = tmp0 * tmp1.wwww;
                 tmp1.x = 1.0 - _SwitchToSight;
@@ -506,6 +507,7 @@ Shader "CW FX/OpticSight" {
                 float4 tmp0;
                 float4 tmp1;
                 tmp0 = tex2D(_CamTex, inp.texcoord.xy);
+				tmp0.a = 0.25;
                 tmp1 = tex2D(_MaskTex2, inp.texcoord.xy);
                 tmp0 = tmp0 * tmp1.wwww;
                 tmp1.x = 1.0 - _SwitchToSight;

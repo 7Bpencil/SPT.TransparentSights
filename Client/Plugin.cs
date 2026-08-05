@@ -111,6 +111,7 @@ namespace SevenBoldPencil.TransparentSights
 
         private string ConfigPath;
         private Shader SightShader;
+        public Shader OpticShader;
         private Dictionary<string, bool> TransparentScopes;
         private Dictionary<string, Dictionary<ItemSpecificationPanel, ContextMenuButton>> ScopesItemPanels;
         private Dictionary<int, PatchedItem> PatchedItems;
@@ -146,6 +147,12 @@ namespace SevenBoldPencil.TransparentSights
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             SightShader = Shader.Find("Transparent/DepthZwriteDithered");
+
+			var bundlePath = Path.Combine(assemblyDir, "bundles", "transparent-sights");
+            var bundle = AssetBundle.LoadFromFile(bundlePath);
+            OpticShader = bundle.LoadAsset<Shader>("Assets/TransparentSights/Shaders/OpticSight.shader");
+            bundle.UnloadAsync(false);
+
             ConfigPath = Path.Combine(assemblyDir, "config.json");
             TransparentScopes = LoadTransparentScopes(ConfigPath);
             ScopesItemPanels = new();
@@ -160,6 +167,7 @@ namespace SevenBoldPencil.TransparentSights
             new Patch_Firearms_SetupMod().Enable();
             new Patch_Firearms_RemoveMod().Enable();
             new Patch_Firearms_SetRoundIntoWeapon().Enable();
+            new Patch_OpticSight_LensFade().Enable();
 #if DEBUG
             new Patch_FirearmController_Idling_DisableAimingOnReload().Enable();
 #endif
@@ -468,6 +476,14 @@ namespace SevenBoldPencil.TransparentSights
 			{
 				return;
 			}
+            if (isOptic)
+            {
+                var backLensTransform = firearms.ProceduralWeaponAnimation.CurrentScope.ScopePrefabCache.CurrentModOpticSight.transform.Find("backLens");
+                if (backLensTransform)
+                {
+                    backLensTransform.gameObject.SetActive(false);
+                }
+            }
             if (MakeEntireWeaponTransparent.Value)
             {
                 {

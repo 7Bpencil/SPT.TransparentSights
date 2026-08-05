@@ -9,6 +9,7 @@ using Diz.Skinning;
 using EFT;
 using EFT.Animations;
 using EFT.AssetsManager;
+using EFT.CameraControl;
 using EFT.InventoryLogic;
 using EFT.Visual;
 using EFT.UI;
@@ -247,6 +248,31 @@ namespace SevenBoldPencil.TransparentSights
 			Plugin.Instance.SetRoundIntoWeapon(__instance, chamberNumber);
 		}
 	}
+
+    public class Patch_OpticSight_LensFade : ModulePatch
+    {
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(OpticSight), nameof(OpticSight.LensFade));
+        }
+
+        [PatchPrefix]
+        private static void PatchPrefix(OpticSight __instance, bool isHide = true)
+        {
+            var lensRenderer = __instance.LensRenderer;
+            var opticShader = Plugin.Instance.OpticShader;
+            if (lensRenderer.material.shader.name != opticShader.name)
+            {
+                // I am pretty sure that's the earliest time LensRenderer is used, so we swap its material here
+
+                Logger.LogWarning("Patch_OpticSight_LensFade");
+                var newMaterial = new Material(opticShader);
+                newMaterial.CopyPropertiesFromMaterial(lensRenderer.material);
+
+                lensRenderer.material = newMaterial;
+            }
+        }
+    }
 
 #if DEBUG
 	public class Patch_FirearmController_Idling_DisableAimingOnReload : ModulePatch
