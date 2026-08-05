@@ -398,7 +398,7 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void OnAimingEnabled(Player player, Firearms firearms)
+        public void OnAimingEnabled(Player player, Firearms firearms, bool isOptic)
         {
             LogInfo("OnAimingEnabled");
 
@@ -406,6 +406,13 @@ namespace SevenBoldPencil.TransparentSights
             {
                 OnAimingDisabled();
             }
+
+			if (isOptic)
+			{
+				// when user switches between optic and collimator on top,
+				// make sure that optic and collimator have correct transparency
+				return;
+			}
 
             RebuildCurrentTransparentItems(player, firearms);
 

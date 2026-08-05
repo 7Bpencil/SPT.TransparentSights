@@ -95,16 +95,9 @@ namespace SevenBoldPencil.TransparentSights
 				return;
 			}
 
-			if (__instance.CurrentScope.IsOptic)
-			{
-				// when user switches between optic and collimator on top,
-				// make sure that optic and collimator have correct transparency
-				Plugin.Instance.OnAimingDisabled();
-				return;
-			}
-
+			var isOptic = __instance.CurrentScope.IsOptic;
 			var firearms = firearmController.Firearms;
-			Plugin.Instance.OnAimingEnabled(player, firearms);
+			Plugin.Instance.OnAimingEnabled(player, firearms, isOptic);
 		}
 	}
 
