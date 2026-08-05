@@ -52,17 +52,6 @@ namespace SevenBoldPencil.TransparentSights
         public Firearms weaponManagerClass { get { return __weaponManagerClass.Get(__instance); } set { __weaponManagerClass.Set(__instance, value); } }
     }
 
-	public struct WeaponPreview_Proxy(WeaponPreview instance)
-	{
-        private readonly WeaponPreview __instance = instance;
-
-		private static TypedFieldInfo<WeaponPreview, GameObject> __gameObject_0 = new("gameObject_0");
-		private static TypedFieldInfo<WeaponPreview, Item> __item_0 = new("item_0");
-
-		public GameObject gameObject_0 { get { return __gameObject_0.Get(__instance); } set { __gameObject_0.Set(__instance, value); } }
-		public Item item_0 { get { return __item_0.Get(__instance); } set { __item_0.Set(__instance, value); } }
-	}
-
 	public struct LoddedSkin_Proxy(LoddedSkin instance)
 	{
         private readonly LoddedSkin __instance = instance;
