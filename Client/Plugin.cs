@@ -143,7 +143,7 @@ namespace SevenBoldPencil.TransparentSights
             PatchedItems = new();
             CurrentTransparentItems = new();
 
-            new Patch_PWA_method_23().Enable();
+            new Patch_PWA_OnAimOrPoseChanged().Enable();
             new Patch_AssetPoolObject_OnDestroy().Enable();
             new Patch_LoddedSkin_Unskin().Enable();
             new Patch_ItemSpecificationPanel_Show().Enable();
@@ -152,7 +152,7 @@ namespace SevenBoldPencil.TransparentSights
             new Patch_Firearms_RemoveMod().Enable();
             new Patch_Firearms_SetRoundIntoWeapon().Enable();
 #if DEBUG
-            new Patch_GClass2037_DisableAimingOnReload().Enable();
+            new Patch_FirearmController_Idling_DisableAimingOnReload().Enable();
 #endif
         }
 
@@ -515,7 +515,7 @@ namespace SevenBoldPencil.TransparentSights
 
             if (assetPoolObject is MagazineInHandsVisualController mag)
             {
-                var magazineInHandsVisual = new MagazineInHandsVisualController_Proxy(mag).gclass2088_0;
+                var magazineInHandsVisual = new MagazineInHandsVisualController_Proxy(mag)._magazineInHandsVisual;
                 if (magazineInHandsVisual is SpringMagazineVisual boxMagazine)
                 {
                     foreach (var bullet in boxMagazine._ammoPoolObjects)

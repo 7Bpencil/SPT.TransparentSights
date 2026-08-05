@@ -42,21 +42,21 @@ namespace SevenBoldPencil.TransparentSights
 	{
         private readonly MagazineInHandsVisualController __instance = instance;
 
-		private static TypedFieldInfo<MagazineInHandsVisualController, MagazineInHandsVisual> _gclass2088_0 = new("_magazineInHandsVisual");
+		private static TypedFieldInfo<MagazineInHandsVisualController, MagazineInHandsVisual> __magazineInHandsVisual = new("_magazineInHandsVisual");
 
-		public MagazineInHandsVisual gclass2088_0 { get { return _gclass2088_0.Get(__instance); } set { _gclass2088_0.Set(__instance, value); } }
+		public MagazineInHandsVisual _magazineInHandsVisual { get { return __magazineInHandsVisual.Get(__instance); } set { __magazineInHandsVisual.Set(__instance, value); } }
 	}
 
 	public struct ItemSpecificationPanel_Proxy(ItemSpecificationPanel instance)
 	{
         private readonly ItemSpecificationPanel __instance = instance;
 
-		private static TypedFieldInfo<ItemSpecificationPanel, Item> __item_0 = new("_item");
+		private static TypedFieldInfo<ItemSpecificationPanel, Item> __item = new("_item");
 
-		public Item item_0 { get { return __item_0.Get(__instance); } set { __item_0.Set(__instance, value); } }
+		public Item _item { get { return __item.Get(__instance); } set { __item.Set(__instance, value); } }
 	}
 
-	public class Patch_PWA_method_23 : ModulePatch
+	public class Patch_PWA_OnAimOrPoseChanged : ModulePatch
 	{
         protected override MethodBase GetTargetMethod()
         {
@@ -154,7 +154,7 @@ namespace SevenBoldPencil.TransparentSights
         private static void Postfix(ItemSpecificationPanel __instance, InteractionButtonsContainer ____interactionButtonsContainer)
         {
 			var __instance__ = new ItemSpecificationPanel_Proxy(__instance);
-			var item = __instance__.item_0;
+			var item = __instance__._item;
 			if (item == null)
 			{
 				return;
@@ -194,7 +194,7 @@ namespace SevenBoldPencil.TransparentSights
         private static void Prefix(ItemSpecificationPanel __instance)
         {
 			var __instance__ = new ItemSpecificationPanel_Proxy(__instance);
-			var item = __instance__.item_0;
+			var item = __instance__._item;
 			if (item == null)
 			{
 				return;
@@ -261,11 +261,11 @@ namespace SevenBoldPencil.TransparentSights
 	}
 
 #if DEBUG
-	public class Patch_GClass2037_DisableAimingOnReload : ModulePatch
+	public class Patch_FirearmController_Idling_DisableAimingOnReload : ModulePatch
 	{
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(Player.FirearmController.Idling), nameof(Player.FirearmController.Idling.DisableAimingOnReload));
+            return AccessTools.Method(typeof(FirearmController.Idling), nameof(FirearmController.Idling.DisableAimingOnReload));
         }
 
         [PatchPrefix]
