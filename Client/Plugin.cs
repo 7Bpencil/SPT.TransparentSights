@@ -390,7 +390,7 @@ namespace SevenBoldPencil.TransparentSights
             var panels = ScopesItemPanels[scopeTemplateId];
             foreach (var (panel, toggleButton) in panels)
             {
-                new ContextMenuButton_Proxy(toggleButton)._text.text = modeName;
+                toggleButton._text.text = modeName;
                 panel.RecreateAttributeBars();
             }
         }
@@ -668,7 +668,7 @@ namespace SevenBoldPencil.TransparentSights
 
         public List<PatchedRenderer> PatchRenderers(LoddedSkin skin)
         {
-            var lods = new LoddedSkin_Proxy(skin)._lods;
+            var lods = skin._lods;
             var result = new List<PatchedRenderer>();
             foreach (var lod in lods)
             {
