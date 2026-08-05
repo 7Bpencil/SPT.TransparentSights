@@ -735,6 +735,7 @@ namespace SevenBoldPencil.TransparentSights
             var shaderName = material.shader.name;
             return
                 shaderName == "p0/Reflective/Bumped Specular SMap" ||
+                shaderName == "p0/Reflective/Specular" ||
                 shaderName == "CW FX/BackLens" ||
                 shaderName == "Unlit/Color2";
         }
