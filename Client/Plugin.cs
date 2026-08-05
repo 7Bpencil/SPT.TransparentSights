@@ -34,7 +34,8 @@ namespace SevenBoldPencil.TransparentSights
     public readonly record struct CurrentAiming
     (
         Player Player,
-        Firearms Firearms
+        Firearms Firearms,
+        bool IsOptic
     );
 
     public readonly record struct CurrentPatchedScope
@@ -97,6 +98,7 @@ namespace SevenBoldPencil.TransparentSights
         public static Plugin Instance;
 
         public static ConfigEntry<bool> MakeEntireWeaponTransparent;
+        public static ConfigEntry<bool> MakeOpticsHousingTransparent;
         public static ConfigEntry<bool> DOF_enabled;
         public static ConfigEntry<BlurSampleCount> DOF_blurSampleCount;
         public static ConfigEntry<float> DOF_aperture;
@@ -123,6 +125,7 @@ namespace SevenBoldPencil.TransparentSights
 			LoggerInstance = Logger;
 
             MakeEntireWeaponTransparent = Config.Bind<bool>("General", "Make entire weapon transparent", false);
+            MakeOpticsHousingTransparent = Config.Bind<bool>("General", "Make optics housing transparent", false);
             DOF_enabled = Config.Bind<bool>("Depth of Field", "Enabled", true);
             DOF_blurSampleCount = Config.Bind<BlurSampleCount>("Depth of Field", "Blur Sample Count", BlurSampleCount.High);
             DOF_aperture = Config.Bind<float>("Depth of Field", "Aperture", 4, new ConfigDescription("", new AcceptableValueRange<float>(0, 50)));
@@ -131,7 +134,8 @@ namespace SevenBoldPencil.TransparentSights
             DOF_foregroundOverlap = Config.Bind<float>("Depth of Field", "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
             DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 15)));
 
-            MakeEntireWeaponTransparent.SettingChanged += (_, _) => ChangeMakeEntireWeaponTransparent();
+            MakeEntireWeaponTransparent.SettingChanged += (_, _) => Change_MakeEntireWeaponTransparent();
+            MakeOpticsHousingTransparent.SettingChanged += (_, _) => Change_MakeOpticsHousingTransparent();
             DOF_enabled.SettingChanged += (_, _) => Change_DOF_Enabled();
             DOF_blurSampleCount.SettingChanged += (_, _) => Change_DOF_Settings();
             DOF_aperture.SettingChanged += (_, _) => Change_DOF_Settings();
@@ -407,14 +411,7 @@ namespace SevenBoldPencil.TransparentSights
                 OnAimingDisabled();
             }
 
-			if (isOptic)
-			{
-				// when user switches between optic and collimator on top,
-				// make sure that optic and collimator have correct transparency
-				return;
-			}
-
-            RebuildCurrentTransparentItems(player, firearms);
+            RebuildCurrentTransparentItems(player, firearms, isOptic);
 
             if (CurrentTransparentItems.Count != 0)
             {
@@ -434,7 +431,8 @@ namespace SevenBoldPencil.TransparentSights
             CurrentAiming = new(new CurrentAiming
             (
                 Player: player,
-                Firearms: firearms
+                Firearms: firearms,
+                IsOptic: isOptic
             ));
         }
 
@@ -464,8 +462,12 @@ namespace SevenBoldPencil.TransparentSights
         // weapon can change between OnAimingDisabled and OnAimingEnabled,
         // so we have to update a list of items that get transparent,
         // hopefully its not that expensive
-        public void RebuildCurrentTransparentItems(Player player, Firearms firearms)
+        public void RebuildCurrentTransparentItems(Player player, Firearms firearms, bool isOptic)
         {
+			if (isOptic && !MakeOpticsHousingTransparent.Value)
+			{
+				return;
+			}
             if (MakeEntireWeaponTransparent.Value)
             {
                 {
@@ -555,48 +557,19 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void ChangeMakeEntireWeaponTransparent()
+        public void Change_MakeEntireWeaponTransparent()
         {
-            if (!CurrentAiming.Some(out var currentAiming))
+            if (CurrentAiming.Some(out var currentAiming))
             {
-                return;
+                OnAimingEnabled(currentAiming.Player, currentAiming.Firearms, currentAiming.IsOptic);
             }
+        }
 
-            foreach (var tranparentItem in CurrentTransparentItems)
+        public void Change_MakeOpticsHousingTransparent()
+        {
+            if (CurrentAiming.Some(out var currentAiming))
             {
-                ForPatchedItem(tranparentItem, SetOriginalMaterials);
-            }
-
-            CurrentTransparentItems.Clear();
-            RebuildCurrentTransparentItems(currentAiming.Player, currentAiming.Firearms);
-
-            if (CurrentTransparentItems.Count != 0)
-            {
-                if (!CurrentPatchedScope.HasValue)
-                {
-                    var DOFDataOption = TryGetDOFData();
-                    CurrentPatchedScope = new(new CurrentPatchedScope
-                    (
-                        Player: currentAiming.Player,
-                        Firearms: currentAiming.Firearms,
-                        DOFDataOption: DOFDataOption
-                    ));
-                    if (DOF_enabled.Value && DOFDataOption.Some(out var DOFData))
-                    {
-                        Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
-                    }
-                }
-            }
-            else
-            {
-                if (CurrentPatchedScope.Some(out var currentPatchedScope))
-                {
-                    if (currentPatchedScope.DOFDataOption.Some(out var DOFData))
-                    {
-                        Set_DOF_Settings_Config(DOFData.DOF, DOFData.OriginalSettings);
-                    }
-                    CurrentPatchedScope = default;
-                }
+                OnAimingEnabled(currentAiming.Player, currentAiming.Firearms, currentAiming.IsOptic);
             }
         }
 
