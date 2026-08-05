@@ -131,14 +131,14 @@ namespace SevenBoldPencil.TransparentSights
             DOF_foregroundOverlap = Config.Bind<float>("Depth of Field", "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
             DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 15)));
 
-            MakeEntireWeaponTransparent.SettingChanged += (_, _) => { ChangeMakeEntireWeaponTransparent(); };
-            DOF_enabled.SettingChanged += (_, _) => { Change_DOF_Enabled(); };
-            DOF_blurSampleCount.SettingChanged += (_, _) => { Change_DOF_Settings(); };
-            DOF_aperture.SettingChanged += (_, _) => { Change_DOF_Settings(); };
-            DOF_focalLength.SettingChanged += (_, _) => { Change_DOF_Settings(); };
-            DOF_focalSize.SettingChanged += (_, _) => { Change_DOF_Settings(); };
-            DOF_foregroundOverlap.SettingChanged += (_, _) => { Change_DOF_Settings(); };
-            DOF_maxBlurSize.SettingChanged += (_, _) => { Change_DOF_Settings(); };
+            MakeEntireWeaponTransparent.SettingChanged += (_, _) => ChangeMakeEntireWeaponTransparent();
+            DOF_enabled.SettingChanged += (_, _) => Change_DOF_Enabled();
+            DOF_blurSampleCount.SettingChanged += (_, _) => Change_DOF_Settings();
+            DOF_aperture.SettingChanged += (_, _) => Change_DOF_Settings();
+            DOF_focalLength.SettingChanged += (_, _) => Change_DOF_Settings();
+            DOF_focalSize.SettingChanged += (_, _) => Change_DOF_Settings();
+            DOF_foregroundOverlap.SettingChanged += (_, _) => Change_DOF_Settings();
+            DOF_maxBlurSize.SettingChanged += (_, _) => Change_DOF_Settings();
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             SightShader = Shader.Find("Transparent/DepthZwriteDithered");
