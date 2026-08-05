@@ -10,6 +10,7 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using EFT;
 using EFT.AssetsManager;
+using EFT.CameraControl;
 using EFT.InventoryLogic;
 using EFT.Visual;
 using EFT.UI;
@@ -407,7 +408,7 @@ namespace SevenBoldPencil.TransparentSights
 
             if (CurrentTransparentItems.Count != 0)
             {
-                var DOF = CameraClass.Instance.DepthOfField_0;
+                var DOF = CameraManager.Instance._depthOfField;
                 var originalSettings = new SettingsDOF
                 (
                     enabled: DOF.enabled,
@@ -552,7 +553,7 @@ namespace SevenBoldPencil.TransparentSights
                 if (!CurrentPatchedScope.HasValue)
                 {
                     // TODO copypaste!
-                    var DOF = CameraClass.Instance.DepthOfField_0;
+                    var DOF = CameraManager.Instance._depthOfField;
                     var originalSettings = new SettingsDOF
                     (
                         enabled: DOF.enabled,
