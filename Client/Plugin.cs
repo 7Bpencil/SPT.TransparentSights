@@ -33,13 +33,13 @@ namespace SevenBoldPencil.TransparentSights
     public readonly record struct CurrentAiming
     (
         Player Player,
-        WeaponManagerClass WeaponManagerClass
+        Firearms WeaponManagerClass
     );
 
     public readonly record struct CurrentPatchedScope
     (
         Player Player,
-        WeaponManagerClass WeaponManagerClass,
+        Firearms WeaponManagerClass,
         DepthOfField DOF,
         SettingsDOF OriginalSettingsDOF
     );
@@ -394,7 +394,7 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void OnAimingEnabled(Player player, WeaponManagerClass weaponManagerClass)
+        public void OnAimingEnabled(Player player, Firearms weaponManagerClass)
         {
             LogInfo("OnAimingEnabled");
 
@@ -441,7 +441,7 @@ namespace SevenBoldPencil.TransparentSights
         // weapon can change between OnAimingDisabled and OnAimingEnabled,
         // so we have to update a list of items that get transparent,
         // hopefully its not that expensive
-        public void RebuildCurrentTransparentItems(Player player, WeaponManagerClass weaponManagerClass)
+        public void RebuildCurrentTransparentItems(Player player, Firearms weaponManagerClass)
         {
             if (MakeEntireWeaponTransparent.Value)
             {
@@ -798,7 +798,7 @@ namespace SevenBoldPencil.TransparentSights
 			LogInfo("OnRemoveMod: ", assetPoolObject.name);
         }
 
-        public void SetRoundIntoWeapon(WeaponManagerClass weaponManagerClass, int chamberNumber)
+        public void SetRoundIntoWeapon(Firearms weaponManagerClass, int chamberNumber)
         {
             if (!MakeEntireWeaponTransparent.Value)
             {

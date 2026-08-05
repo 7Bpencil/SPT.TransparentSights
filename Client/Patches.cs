@@ -46,10 +46,10 @@ namespace SevenBoldPencil.TransparentSights
         private readonly FirearmController __instance = instance;
 
         private static TypedFieldInfo<FirearmController, Player> __player = new("_player");
-		private static TypedFieldInfo<FirearmController, WeaponManagerClass> __weaponManagerClass = new("weaponManagerClass");
+		private static TypedFieldInfo<FirearmController, Firearms> __weaponManagerClass = new("weaponManagerClass");
 
         public Player _player { get { return __player.Get(__instance); } set { __player.Set(__instance, value); } }
-        public WeaponManagerClass weaponManagerClass { get { return __weaponManagerClass.Get(__instance); } set { __weaponManagerClass.Set(__instance, value); } }
+        public Firearms weaponManagerClass { get { return __weaponManagerClass.Get(__instance); } set { __weaponManagerClass.Set(__instance, value); } }
     }
 
 	public struct WeaponPreview_Proxy(WeaponPreview instance)
@@ -270,11 +270,11 @@ namespace SevenBoldPencil.TransparentSights
 	{
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(WeaponManagerClass), nameof(WeaponManagerClass.SetupMod));
+            return AccessTools.Method(typeof(Firearms), nameof(Firearms.SetupMod));
         }
 
         [PatchPostfix]
-        private static void Postfix(WeaponManagerClass __instance, Slot slot, GameObject modObject)
+        private static void Postfix(Firearms __instance, Slot slot, GameObject modObject)
 		{
 			if (modObject.TryGetComponent<AssetPoolObject>(out var assetPoolObject))
 			{
@@ -287,11 +287,11 @@ namespace SevenBoldPencil.TransparentSights
 	{
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(WeaponManagerClass), nameof(WeaponManagerClass.RemoveMod));
+            return AccessTools.Method(typeof(Firearms), nameof(Firearms.RemoveMod));
         }
 
         [PatchPrefix]
-        private static void Prefix(WeaponManagerClass __instance, Slot slot)
+        private static void Prefix(Firearms __instance, Slot slot)
 		{
 			var viewForSlot = __instance.Gclass768_0.GetViewForSlot(slot);
 			var index = viewForSlot.Bone.childCount - 1;
@@ -307,11 +307,11 @@ namespace SevenBoldPencil.TransparentSights
 	{
         protected override MethodBase GetTargetMethod()
         {
-            return AccessTools.Method(typeof(WeaponManagerClass), nameof(WeaponManagerClass.SetRoundIntoWeapon));
+            return AccessTools.Method(typeof(Firearms), nameof(Firearms.SetRoundIntoWeapon));
         }
 
         [PatchPostfix]
-		private static void Postfix(WeaponManagerClass __instance, AmmoItemClass ammo, int chamberNumber = 0)
+		private static void Postfix(Firearms __instance, Ammo ammo, int chamberNumber = 0)
 		{
 			Plugin.Instance.SetRoundIntoWeapon(__instance, chamberNumber);
 		}
