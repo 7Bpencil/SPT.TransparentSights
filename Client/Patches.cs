@@ -66,50 +66,45 @@ namespace SevenBoldPencil.TransparentSights
         [PatchPostfix]
         public static void Postfix(ProceduralWeaponAnimation __instance, bool forced = false)
 		{
-			try
+			if (!__instance)
 			{
-				if (!__instance)
-				{
-					return;
-				}
-				var __instance__ = new ProceduralWeaponAnimation_Proxy(__instance);
-				var firearmController = __instance__._firearmController;
-				if (!firearmController)
-				{
-					return;
-				}
-				var player = firearmController._player;
-				if (!player)
-				{
-					return;
-				}
-
-				if (!player.IsYourPlayer)
-				{
-					return;
-				}
-
-				if (!__instance__._isAiming)
-				{
-					Plugin.Instance.OnAimingDisabled();
-					return;
-				}
-
-				if (__instance.CurrentScope.IsOptic)
-				{
-					// when user switches between optic and collimator on top,
-					// make sure that optic and collimator have correct transparency
-					Plugin.Instance.OnAimingDisabled();
-					return;
-				}
-
-				var firearms = firearmController.Firearms;
-				Plugin.Instance.OnAimingEnabled(player, firearms);
+				return;
 			}
-			catch (Exception e)
+
+			var __instance__ = new ProceduralWeaponAnimation_Proxy(__instance);
+			var firearmController = __instance__._firearmController;
+			if (!firearmController)
 			{
-				Logger.LogError(e);
+				return;
 			}
+
+			var player = firearmController._player;
+			if (!player)
+			{
+				return;
+			}
+
+			if (!player.IsYourPlayer)
+			{
+				return;
+			}
+
+			if (!__instance__._isAiming)
+			{
+				Plugin.Instance.OnAimingDisabled();
+				return;
+			}
+
+			if (__instance.CurrentScope.IsOptic)
+			{
+				// when user switches between optic and collimator on top,
+				// make sure that optic and collimator have correct transparency
+				Plugin.Instance.OnAimingDisabled();
+				return;
+			}
+
+			var firearms = firearmController.Firearms;
+			Plugin.Instance.OnAimingEnabled(player, firearms);
 		}
 	}
 
