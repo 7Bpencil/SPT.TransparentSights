@@ -34,13 +34,13 @@ namespace SevenBoldPencil.TransparentSights
     public readonly record struct CurrentAiming
     (
         Player Player,
-        Firearms WeaponManagerClass
+        Firearms Firearms
     );
 
     public readonly record struct CurrentPatchedScope
     (
         Player Player,
-        Firearms WeaponManagerClass,
+        Firearms Firearms,
         DepthOfField DOF,
         SettingsDOF OriginalSettingsDOF
     );
@@ -148,9 +148,9 @@ namespace SevenBoldPencil.TransparentSights
             new Patch_LoddedSkin_Unskin().Enable();
             new Patch_ItemSpecificationPanel_Show().Enable();
             new Patch_ItemSpecificationPanel_Close().Enable();
-            new Patch_WeaponManagerClass_SetupMod().Enable();
-            new Patch_WeaponManagerClass_RemoveMod().Enable();
-            new Patch_WeaponManagerClass_SetRoundIntoWeapon().Enable();
+            new Patch_Firearms_SetupMod().Enable();
+            new Patch_Firearms_RemoveMod().Enable();
+            new Patch_Firearms_SetRoundIntoWeapon().Enable();
 #if DEBUG
             new Patch_GClass2037_DisableAimingOnReload().Enable();
 #endif
@@ -395,7 +395,7 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void OnAimingEnabled(Player player, Firearms weaponManagerClass)
+        public void OnAimingEnabled(Player player, Firearms firearms)
         {
             LogInfo("OnAimingEnabled");
 
@@ -404,7 +404,7 @@ namespace SevenBoldPencil.TransparentSights
                 OnAimingDisabled();
             }
 
-            RebuildCurrentTransparentItems(player, weaponManagerClass);
+            RebuildCurrentTransparentItems(player, firearms);
 
             if (CurrentTransparentItems.Count != 0)
             {
@@ -422,7 +422,7 @@ namespace SevenBoldPencil.TransparentSights
                 CurrentPatchedScope = new(new CurrentPatchedScope
                 (
                     Player: player,
-                    WeaponManagerClass: weaponManagerClass,
+                    Firearms: firearms,
                     DOF: DOF,
                     OriginalSettingsDOF: originalSettings
                 ));
@@ -435,14 +435,14 @@ namespace SevenBoldPencil.TransparentSights
             CurrentAiming = new(new CurrentAiming
             (
                 Player: player,
-                WeaponManagerClass: weaponManagerClass
+                Firearms: firearms
             ));
         }
 
         // weapon can change between OnAimingDisabled and OnAimingEnabled,
         // so we have to update a list of items that get transparent,
         // hopefully its not that expensive
-        public void RebuildCurrentTransparentItems(Player player, Firearms weaponManagerClass)
+        public void RebuildCurrentTransparentItems(Player player, Firearms firearms)
         {
             if (MakeEntireWeaponTransparent.Value)
             {
@@ -450,7 +450,7 @@ namespace SevenBoldPencil.TransparentSights
                     var hands = player.PlayerBody.BodySkins[EBodyModelPart.Hands];
                     TryPatchItem(hands, PatchRenderers);
                 }
-                var weaponPrefab = weaponManagerClass.WeaponPrefab;
+                var weaponPrefab = firearms.WeaponPrefab;
                 TryPatchItem(weaponPrefab, PatchRenderers);
                 if (weaponPrefab.ContainerCollectionView != null)
                 {
@@ -471,20 +471,20 @@ namespace SevenBoldPencil.TransparentSights
                         }
                     }
                 }
-                foreach (var bullet in weaponManagerClass._ammoObjectInWeapon)
+                foreach (var bullet in firearms._ammoObjectInWeapon)
                 {
                     TryPatchItem(bullet, PatchRenderers);
                 }
                 // this one is important for revolvers, test:
                 // ADS, shoot 2 times, un ADS, then ADS again, you will see
-                foreach (var bullet in weaponManagerClass._shellsInShellPort)
+                foreach (var bullet in firearms._shellsInShellPort)
                 {
                     TryPatchItem(bullet, PatchRenderers);
                 }
             }
             else
             {
-    			var pwa = weaponManagerClass.ProceduralWeaponAnimation;
+    			var pwa = firearms.ProceduralWeaponAnimation;
     			var currentAimingMod = pwa.CurrentAimingMod;
     			if (currentAimingMod == null)
     			{
@@ -546,7 +546,7 @@ namespace SevenBoldPencil.TransparentSights
             }
 
             CurrentTransparentItems.Clear();
-            RebuildCurrentTransparentItems(currentAiming.Player, currentAiming.WeaponManagerClass);
+            RebuildCurrentTransparentItems(currentAiming.Player, currentAiming.Firearms);
 
             if (CurrentTransparentItems.Count != 0)
             {
@@ -567,7 +567,7 @@ namespace SevenBoldPencil.TransparentSights
                     CurrentPatchedScope = new(new CurrentPatchedScope
                     (
                         Player: currentAiming.Player,
-                        WeaponManagerClass: currentAiming.WeaponManagerClass,
+                        Firearms: currentAiming.Firearms,
                         DOF: DOF,
                         OriginalSettingsDOF: originalSettings
                     ));
@@ -764,7 +764,7 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return;
             }
-            if (currentPatchedScope.WeaponManagerClass.WeaponPrefab != weaponPrefab)
+            if (currentPatchedScope.Firearms.WeaponPrefab != weaponPrefab)
             {
                 return;
             }
@@ -784,7 +784,7 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return;
             }
-            if (currentPatchedScope.WeaponManagerClass.WeaponPrefab != weaponPrefab)
+            if (currentPatchedScope.Firearms.WeaponPrefab != weaponPrefab)
             {
                 return;
             }
@@ -799,7 +799,7 @@ namespace SevenBoldPencil.TransparentSights
 			LogInfo("OnRemoveMod: ", assetPoolObject.name);
         }
 
-        public void SetRoundIntoWeapon(Firearms weaponManagerClass, int chamberNumber)
+        public void SetRoundIntoWeapon(Firearms firearms, int chamberNumber)
         {
             if (!MakeEntireWeaponTransparent.Value)
             {
@@ -809,12 +809,12 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return;
             }
-            if (currentPatchedScope.WeaponManagerClass != weaponManagerClass)
+            if (currentPatchedScope.Firearms != firearms)
             {
                 return;
             }
 
-            var bullet = weaponManagerClass._ammoObjectInWeapon[chamberNumber];
+            var bullet = firearms._ammoObjectInWeapon[chamberNumber];
             TryPatchItem(bullet, PatchRenderers);
 
 			LogInfo("SetRoundIntoWeapon");

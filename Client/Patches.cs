@@ -103,8 +103,8 @@ namespace SevenBoldPencil.TransparentSights
 					return;
 				}
 
-				var weaponManagerClass = firearmController.Firearms;
-				Plugin.Instance.OnAimingEnabled(player, weaponManagerClass);
+				var firearms = firearmController.Firearms;
+				Plugin.Instance.OnAimingEnabled(player, firearms);
 			}
 			catch (Exception e)
 			{
@@ -209,7 +209,7 @@ namespace SevenBoldPencil.TransparentSights
         }
     }
 
-	public class Patch_WeaponManagerClass_SetupMod : ModulePatch
+	public class Patch_Firearms_SetupMod : ModulePatch
 	{
         protected override MethodBase GetTargetMethod()
         {
@@ -226,7 +226,7 @@ namespace SevenBoldPencil.TransparentSights
 		}
 	}
 
-	public class Patch_WeaponManagerClass_RemoveMod : ModulePatch
+	public class Patch_Firearms_RemoveMod : ModulePatch
 	{
         protected override MethodBase GetTargetMethod()
         {
@@ -246,7 +246,7 @@ namespace SevenBoldPencil.TransparentSights
 		}
 	}
 
-	public class Patch_WeaponManagerClass_SetRoundIntoWeapon : ModulePatch
+	public class Patch_Firearms_SetRoundIntoWeapon : ModulePatch
 	{
         protected override MethodBase GetTargetMethod()
         {
