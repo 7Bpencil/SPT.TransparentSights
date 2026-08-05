@@ -609,11 +609,12 @@ namespace SevenBoldPencil.TransparentSights
                 {
                     ForPatchedItem(tranparentItem, SetOriginalMaterials);
                 }
+                CurrentTransparentItems.Clear();
+
                 if (currentPatchedScope.DOFDataOption.Some(out var DOFData))
                 {
                     Set_DOF_Settings_Config(DOFData.DOF, DOFData.OriginalSettings);
                 }
-                CurrentTransparentItems.Clear();
                 CurrentPatchedScope = default;
             }
 
