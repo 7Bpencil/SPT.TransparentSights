@@ -41,8 +41,13 @@ namespace SevenBoldPencil.TransparentSights
     (
         Player Player,
         Firearms Firearms,
+        Option<DOFData> DOFDataOption
+    );
+
+    public readonly record struct DOFData
+    (
         DepthOfField DOF,
-        SettingsDOF OriginalSettingsDOF
+        SettingsDOF OriginalSettings
     );
 
     public readonly record struct SettingsDOF
@@ -127,13 +132,13 @@ namespace SevenBoldPencil.TransparentSights
             DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 15)));
 
             MakeEntireWeaponTransparent.SettingChanged += (_, _) => { ChangeMakeEntireWeaponTransparent(); };
-            DOF_enabled.SettingChanged += (_, _) => { Change_DOF(Set_DOF_enabled); };
-            DOF_blurSampleCount.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
-            DOF_aperture.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
-            DOF_focalLength.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
-            DOF_focalSize.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
-            DOF_foregroundOverlap.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
-            DOF_maxBlurSize.SettingChanged += (_, _) => { Change_DOF(Set_DOF_parameters_config); };
+            DOF_enabled.SettingChanged += (_, _) => { Change_DOF_Enabled(); };
+            DOF_blurSampleCount.SettingChanged += (_, _) => { Change_DOF_Settings(); };
+            DOF_aperture.SettingChanged += (_, _) => { Change_DOF_Settings(); };
+            DOF_focalLength.SettingChanged += (_, _) => { Change_DOF_Settings(); };
+            DOF_focalSize.SettingChanged += (_, _) => { Change_DOF_Settings(); };
+            DOF_foregroundOverlap.SettingChanged += (_, _) => { Change_DOF_Settings(); };
+            DOF_maxBlurSize.SettingChanged += (_, _) => { Change_DOF_Settings(); };
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             SightShader = Shader.Find("Transparent/DepthZwriteDithered");
@@ -156,46 +161,44 @@ namespace SevenBoldPencil.TransparentSights
 #endif
         }
 
-        public void Change_DOF(Action<DepthOfField> change)
+        public void Change_DOF_Settings()
         {
-            if (CurrentPatchedScope.Some(out var currentPatchedScope))
+            if (CurrentPatchedScope.Some(out var currentPatchedScope) && currentPatchedScope.DOFDataOption.Some(out var DOFData))
             {
-                change(currentPatchedScope.DOF);
+                Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
             }
         }
 
-        public void Change_DOF(Action<DepthOfField, SettingsDOF> change)
+        public void Change_DOF_Enabled()
         {
-            if (CurrentPatchedScope.Some(out var currentPatchedScope))
+            if (CurrentPatchedScope.Some(out var currentPatchedScope) && currentPatchedScope.DOFDataOption.Some(out var DOFData))
             {
-                change(currentPatchedScope.DOF, currentPatchedScope.OriginalSettingsDOF);
+                if (DOF_enabled.Value)
+                {
+                    Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
+                }
+                else
+                {
+                    Set_DOF_Settings_Config(DOFData.DOF, DOFData.OriginalSettings);
+                }
             }
         }
 
-        public void Set_DOF_enabled(DepthOfField DOF, SettingsDOF originalSettingsDOF)
+        public SettingsDOF Get_DOF_Config()
         {
-            if (DOF_enabled.Value)
-            {
-                Set_DOF_parameters_config(DOF);
-            }
-            else
-            {
-                Set_DOF_parameters(DOF, originalSettingsDOF);
-            }
+            return new SettingsDOF
+            (
+                enabled: DOF_enabled.Value,
+                blurSampleCount: DOF_blurSampleCount.Value,
+                aperture: DOF_aperture.Value,
+                focalLength: DOF_focalLength.Value,
+                focalSize: DOF_focalSize.Value,
+                foregroundOverlap: DOF_foregroundOverlap.Value,
+                maxBlurSize: DOF_maxBlurSize.Value
+            );
         }
 
-        public void Set_DOF_parameters_config(DepthOfField DOF)
-        {
-            DOF.enabled = DOF_enabled.Value;
-            DOF.blurSampleCount = DOF_blurSampleCount.Value;
-            DOF.aperture = DOF_aperture.Value;
-            DOF.focalLength = DOF_focalLength.Value;
-            DOF.focalSize = DOF_focalSize.Value;
-            DOF.foregroundOverlap = DOF_foregroundOverlap.Value;
-            DOF.maxBlurSize = DOF_maxBlurSize.Value;
-        }
-
-        public void Set_DOF_parameters(DepthOfField DOF, SettingsDOF settings)
+        public void Set_DOF_Settings_Config(DepthOfField DOF, SettingsDOF settings)
         {
             DOF.enabled = settings.enabled;
             DOF.blurSampleCount = settings.blurSampleCount;
@@ -408,7 +411,33 @@ namespace SevenBoldPencil.TransparentSights
 
             if (CurrentTransparentItems.Count != 0)
             {
-                var DOF = CameraManager.Instance._depthOfField;
+                var DOFDataOption = TryGetDOFData();
+                CurrentPatchedScope = new(new CurrentPatchedScope
+                (
+                    Player: player,
+                    Firearms: firearms,
+                    DOFDataOption: DOFDataOption
+                ));
+                if (DOF_enabled.Value && DOFDataOption.Some(out var DOFData))
+                {
+                    Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
+                }
+            }
+
+            CurrentAiming = new(new CurrentAiming
+            (
+                Player: player,
+                Firearms: firearms
+            ));
+        }
+
+        public Option<DOFData> TryGetDOFData()
+        {
+            var DOF = CameraManager.Instance._depthOfField;
+
+            // for some reason DOF is sometimes null...
+            if (DOF)
+            {
                 var originalSettings = new SettingsDOF
                 (
                     enabled: DOF.enabled,
@@ -419,24 +448,10 @@ namespace SevenBoldPencil.TransparentSights
                     foregroundOverlap: DOF.foregroundOverlap,
                     maxBlurSize: DOF.maxBlurSize
                 );
-                CurrentPatchedScope = new(new CurrentPatchedScope
-                (
-                    Player: player,
-                    Firearms: firearms,
-                    DOF: DOF,
-                    OriginalSettingsDOF: originalSettings
-                ));
-                if (DOF_enabled.Value)
-                {
-                    Set_DOF_parameters_config(DOF);
-                }
+                return new(new(DOF, originalSettings));
             }
 
-            CurrentAiming = new(new CurrentAiming
-            (
-                Player: player,
-                Firearms: firearms
-            ));
+            return default;
         }
 
         // weapon can change between OnAimingDisabled and OnAimingEnabled,
@@ -552,28 +567,16 @@ namespace SevenBoldPencil.TransparentSights
             {
                 if (!CurrentPatchedScope.HasValue)
                 {
-                    // TODO copypaste!
-                    var DOF = CameraManager.Instance._depthOfField;
-                    var originalSettings = new SettingsDOF
-                    (
-                        enabled: DOF.enabled,
-                        blurSampleCount: DOF.blurSampleCount,
-                        aperture: DOF.aperture,
-                        focalLength: DOF.focalLength,
-                        focalSize: DOF.focalSize,
-                        foregroundOverlap: DOF.foregroundOverlap,
-                        maxBlurSize: DOF.maxBlurSize
-                    );
+                    var DOFDataOption = TryGetDOFData();
                     CurrentPatchedScope = new(new CurrentPatchedScope
                     (
                         Player: currentAiming.Player,
                         Firearms: currentAiming.Firearms,
-                        DOF: DOF,
-                        OriginalSettingsDOF: originalSettings
+                        DOFDataOption: DOFDataOption
                     ));
-                    if (DOF_enabled.Value)
+                    if (DOF_enabled.Value && DOFDataOption.Some(out var DOFData))
                     {
-                        Set_DOF_parameters_config(DOF);
+                        Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
                     }
                 }
             }
@@ -581,7 +584,10 @@ namespace SevenBoldPencil.TransparentSights
             {
                 if (CurrentPatchedScope.Some(out var currentPatchedScope))
                 {
-                    Set_DOF_parameters(currentPatchedScope.DOF, currentPatchedScope.OriginalSettingsDOF);
+                    if (currentPatchedScope.DOFDataOption.Some(out var DOFData))
+                    {
+                        Set_DOF_Settings_Config(DOFData.DOF, DOFData.OriginalSettings);
+                    }
                     CurrentPatchedScope = default;
                 }
             }
@@ -596,7 +602,10 @@ namespace SevenBoldPencil.TransparentSights
                 {
                     ForPatchedItem(tranparentItem, SetOriginalMaterials);
                 }
-                Set_DOF_parameters(currentPatchedScope.DOF, currentPatchedScope.OriginalSettingsDOF);
+                if (currentPatchedScope.DOFDataOption.Some(out var DOFData))
+                {
+                    Set_DOF_Settings_Config(DOFData.DOF, DOFData.OriginalSettings);
+                }
                 CurrentTransparentItems.Clear();
                 CurrentPatchedScope = default;
             }
