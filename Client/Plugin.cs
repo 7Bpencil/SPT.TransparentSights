@@ -87,12 +87,6 @@ namespace SevenBoldPencil.TransparentSights
         public static readonly int _Cull = Shader.PropertyToID("_Cull");
 
         private const double SaveLagTime = 10;
-		private static string[] ScopeTransparencyModeNames =
-		[
-			"TRANSP. OFF",
-			"TRANSP. ON",
-			"TRANSP. ON + MOUNT",
-		];
 
         public static Plugin Instance;
 
@@ -276,7 +270,12 @@ namespace SevenBoldPencil.TransparentSights
 
 		private string GetScopeTransparencyModeName(ScopeTransparencyMode value)
 		{
-			return ScopeTransparencyModeNames[(int)value];
+            return value switch
+            {
+        		ScopeTransparencyMode.Disabled => "TRANSP. OFF",
+        		ScopeTransparencyMode.Enabled => "TRANSP. ON",
+        		ScopeTransparencyMode.EnabledWithMount => "TRANSP. ON + MOUNT",
+            }
 		}
 
         public ScopeTransparencyMode GetScopeTransparencyMode(string scopeTemplateId)
