@@ -79,7 +79,6 @@ namespace SevenBoldPencil.TransparentSights
 		Disabled,
 		Enabled,
 		EnabledWithMount,
-		MODES_COUNT,
 	}
 
     [BepInPlugin("7Bpencil.TransparentSights", "7Bpencil.TransparentSights", "0.1.1")]
@@ -111,7 +110,7 @@ namespace SevenBoldPencil.TransparentSights
 
         private string ConfigPath;
         private Shader SightShader;
-        private Dictionary<string, bool> TransparentScopes;
+        private Dictionary<string, ScopeTransparencyMode> TransparentScopes;
         private Dictionary<string, Dictionary<ItemSpecificationPanel, ContextMenuButton>> ScopesItemPanels;
         private Dictionary<int, PatchedItem> PatchedItems;
         private List<int> CurrentTransparentItems;
@@ -213,11 +212,11 @@ namespace SevenBoldPencil.TransparentSights
             DOF.maxBlurSize = settings.maxBlurSize;
         }
 
-        public Dictionary<string, bool> LoadTransparentScopes(string filePath)
+        public Dictionary<string, ScopeTransparencyMode> LoadTransparentScopes(string filePath)
         {
             if (SafeIO.ReadAllText(filePath).Ok(out var json, out var e))
             {
-                var result = JsonConvert.DeserializeObject<Dictionary<string, bool>>(json);
+                var result = JsonConvert.DeserializeObject<Dictionary<string, ScopeTransparencyMode>>(json);
                 return result;
             }
             else
@@ -227,59 +226,14 @@ namespace SevenBoldPencil.TransparentSights
 
             return new()
             {
-                { "616442e4faa1272e43152193", true  },
-                { "6477772ea8a38bb2050ed4db", false },
-                { "618a5d5852ecee1505530b2a", false },
-                { "5b30b0dc5acfc400153b7124", false },
-                { "5b3116595acfc40019476364", true  },
-                { "58491f3324597764bc48fa02", false },
-                { "59f9d81586f7744c7506ee62", false },
-                { "58d399e486f77442e0016fe7", true  },
-                { "6165ac8c290d254f5e6b2f6c", false },
-                { "591c4efa86f7741030027726", false },
-                { "58d268fc86f774111273f8c2", false },
-                { "5d2da1e948f035477b1ce2ba", false },
-                { "688b44cb28bf8d85cd0ff108", false },
-                { "558022b54bdc2dac148b458d", false },
-                { "570fd6c2d2720bc6458b457f", false },
-                { "570fd721d2720bc5458b4596", false },
-                { "570fd79bd2720bc7458b4583", false },
-                { "57ae0171245977343c27bfcf", false },
-                { "584924ec24597768f12ae244", false },
-                { "584984812459776a704a82a6", false },
-                { "5c0505e00db834001b735073", false },
-                { "6113d6c3290d254f5e6b27db", false },
-                { "6544d4187c5457729210d277", false },
-                { "68a5ab09c44fa287ba0a97b5", false },
-                { "655f13e0a246670fb0373245", false },
-                { "64785e7c19d732620e045e15", false },
-                { "60a23797a37c940de7062d02", false },
-                { "609a63b6e2ff132951242d09", false },
-                { "5c7d55de2e221644f31bff68", false },
-                { "61659f79d92c473c770213ee", false },
-                { "61657230d92c473c770213d7", true  },
-                { "5a32aa8bc4a2826c6e06d737", false },
-                { "68a5ac69b55a6b93c20a2bc7", false },
-                { "688b4bd81cef2a61d0052738", false },
-                { "5947db3f86f77447880cf76f", false },
-                { "57486e672459770abd687134", false },
-                { "577d141e24597739c5255e01", false },
-                { "5c05295e0db834001a66acbb", false },
-                { "5fb6564947ce63734e3fa1da", false },
-                { "55d5f46a4bdc2d1b198b4567", false },
-                { "5894a81786f77427140b8347", false },
-                { "5ba26b17d4351e00367f9bdd", false },
-                { "68a63d3c8e977b40b2032286", false },
-                { "5fc0fa957283c4046c58147e", false },
-                { "68caad70269e10396503ad00", false },
-                { "5dfa3d7ac41b2312ea33362a", false },
-                { "5bb20e49d4351e3bac1212de", false },
-                { "5bc09a18d4351e003562b68e", false },
-                { "5c1780312e221602b66cc189", false }
+                { "616442e4faa1272e43152193", ScopeTransparencyMode.EnabledWithMount },
+                { "5b3116595acfc40019476364", ScopeTransparencyMode.EnabledWithMount },
+                { "58d399e486f77442e0016fe7", ScopeTransparencyMode.EnabledWithMount },
+                { "61657230d92c473c770213d7", ScopeTransparencyMode.EnabledWithMount },
             };
         }
 
-        public void SaveTransparentScopesToFile(string filePath, Dictionary<string, bool> transparentScopes)
+        public void SaveTransparentScopesToFile(string filePath, Dictionary<string, ScopeTransparencyMode> transparentScopes)
         {
             var json = JsonConvert.SerializeObject(transparentScopes, Formatting.Indented);
             SafeIO.WriteAllTextAsync(filePath, json);
@@ -310,35 +264,36 @@ namespace SevenBoldPencil.TransparentSights
 #endif
         }
 
-        public static ScopeTransparencyMode GetNextMode(ScopeTransparencyMode value)
+        public static ScopeTransparencyMode GetNextScopeTransparencyMode(ScopeTransparencyMode value)
         {
-            return (ScopeTransparencyMode)(((int)value + 1) % (int)ScopeTransparencyMode.MODES_COUNT);
+            return value switch
+            {
+        		ScopeTransparencyMode.Disabled => ScopeTransparencyMode.Enabled,
+        		ScopeTransparencyMode.Enabled => ScopeTransparencyMode.EnabledWithMount,
+        		ScopeTransparencyMode.EnabledWithMount => ScopeTransparencyMode.Disabled,
+            };
         }
 
-		private string GetName(ScopeTransparencyMode value)
+		private string GetScopeTransparencyModeName(ScopeTransparencyMode value)
 		{
 			return ScopeTransparencyModeNames[(int)value];
 		}
 
         public ScopeTransparencyMode GetScopeTransparencyMode(string scopeTemplateId)
         {
-            if (TransparentScopes.TryGetValue(scopeTemplateId, out var isMountTransparent))
+            if (TransparentScopes.TryGetValue(scopeTemplateId, out var transparencyMode))
             {
-                if (isMountTransparent)
-                {
-                    return ScopeTransparencyMode.EnabledWithMount;
-                }
-
-                return ScopeTransparencyMode.Enabled;
+                return transparencyMode;
             }
 
-            return ScopeTransparencyMode.Disabled;
+            // by default all sights are transparent
+            return ScopeTransparencyMode.Enabled;
         }
 
         public string GetScopeTransparencyModeName(string scopeTemplateId)
         {
             var mode = GetScopeTransparencyMode(scopeTemplateId);
-            var modeName = GetName(mode);
+            var modeName = GetScopeTransparencyModeName(mode);
             return modeName;
         }
 
@@ -348,21 +303,9 @@ namespace SevenBoldPencil.TransparentSights
             // because its impossible to change scope setting while ADS (player needs to open inventory first),
             // so OnAimingEnabled can take care of that
 
-            if (TransparentScopes.TryGetValue(scopeTemplateId, out var isMountTransparent))
-            {
-                if (isMountTransparent)
-                {
-                    TransparentScopes.Remove(scopeTemplateId);
-                }
-                else
-                {
-                    TransparentScopes[scopeTemplateId] = true;
-                }
-            }
-            else
-            {
-                TransparentScopes.Add(scopeTemplateId, false);
-            }
+            var currentMode = GetScopeTransparencyMode(scopeTemplateId);
+            var nextMode = GetNextScopeTransparencyMode(currentMode);
+            TransparentScopes[scopeTemplateId] = nextMode;
 
             LastSaveTime = new(Time.realtimeSinceStartupAsDouble);
         }
@@ -375,7 +318,7 @@ namespace SevenBoldPencil.TransparentSights
             }
             else
             {
-                ScopesItemPanels.Add(scopeTemplateId, new(){{panel, toggleButton}});
+                ScopesItemPanels.Add(scopeTemplateId, new(){{ panel, toggleButton }});
             }
         }
 
@@ -518,16 +461,32 @@ namespace SevenBoldPencil.TransparentSights
 
     			var scopeTemplateId = currentAimingMod.Item.StringTemplateId;
     			var scopeTransform = pwa.CurrentScope.Bone.transform.parent;
-
-                if (TransparentScopes.TryGetValue(scopeTemplateId, out var isMountTransparent))
+                var scopeTransparencyMode = GetScopeTransparencyMode(scopeTemplateId);
+                switch (scopeTransparencyMode)
                 {
-                    if (FindScope(scopeTransform).Some(out var scope))
+            		case ScopeTransparencyMode.Disabled:
                     {
-                        TryPatchItem(scope, PatchRenderers);
+                        break;
                     }
-                    if (isMountTransparent && FindParentAssetPoolObject(scopeTransform).Some(out var mount))
+            		case ScopeTransparencyMode.Enabled:
                     {
-                        TryPatchItem(mount, PatchRenderers);
+                        if (FindScope(scopeTransform).Some(out var scope))
+                        {
+                            TryPatchItem(scope, PatchRenderers);
+                        }
+                        break;
+                    }
+            		case ScopeTransparencyMode.EnabledWithMount:
+                    {
+                        if (FindScope(scopeTransform).Some(out var scope))
+                        {
+                            TryPatchItem(scope, PatchRenderers);
+                        }
+                        if (FindParentAssetPoolObject(scopeTransform).Some(out var mount))
+                        {
+                            TryPatchItem(mount, PatchRenderers);
+                        }
+                        break;
                     }
                 }
             }
