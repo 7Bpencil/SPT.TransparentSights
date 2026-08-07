@@ -348,6 +348,11 @@ namespace SevenBoldPencil.TransparentSights
 
         public void OnAimingEnabled(Player player, Firearms firearms)
         {
+#if DEBUG
+            // infinite stamina for testing
+            player.Physical.Stamina.Multiplier = 0;
+            player.Physical.HandsStamina.Multiplier = 0;
+#endif
             LogInfo("OnAimingEnabled");
 
             if (CurrentPatchedScope.HasValue)

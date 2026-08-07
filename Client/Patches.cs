@@ -258,6 +258,7 @@ namespace SevenBoldPencil.TransparentSights
         [PatchPrefix]
         private static bool Prefix()
 		{
+			// keep ADS on reload no matter weapon mastery for testing
 			return false;
 		}
 	}
