@@ -95,9 +95,8 @@ namespace SevenBoldPencil.TransparentSights
 				return;
 			}
 
-			var isOptic = __instance.CurrentScope.IsOptic;
 			var firearms = firearmController.Firearms;
-			Plugin.Instance.OnAimingEnabled(player, firearms, isOptic);
+			Plugin.Instance.OnAimingEnabled(player, firearms);
 		}
 	}
 

@@ -34,8 +34,7 @@ namespace SevenBoldPencil.TransparentSights
     public readonly record struct CurrentAiming
     (
         Player Player,
-        Firearms Firearms,
-        bool IsOptic
+        Firearms Firearms
     );
 
     public readonly record struct CurrentPatchedScope
@@ -347,7 +346,7 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void OnAimingEnabled(Player player, Firearms firearms, bool isOptic)
+        public void OnAimingEnabled(Player player, Firearms firearms)
         {
             LogInfo("OnAimingEnabled");
 
@@ -356,7 +355,7 @@ namespace SevenBoldPencil.TransparentSights
                 OnAimingDisabled();
             }
 
-            RebuildCurrentTransparentItems(player, firearms, isOptic);
+            RebuildCurrentTransparentItems(player, firearms);
 
             if (CurrentTransparentItems.Count != 0)
             {
@@ -376,8 +375,7 @@ namespace SevenBoldPencil.TransparentSights
             CurrentAiming = new(new CurrentAiming
             (
                 Player: player,
-                Firearms: firearms,
-                IsOptic: isOptic
+                Firearms: firearms
             ));
         }
 
@@ -407,8 +405,10 @@ namespace SevenBoldPencil.TransparentSights
         // weapon can change between OnAimingDisabled and OnAimingEnabled,
         // so we have to update a list of items that get transparent,
         // hopefully its not that expensive
-        public void RebuildCurrentTransparentItems(Player player, Firearms firearms, bool isOptic)
+        public void RebuildCurrentTransparentItems(Player player, Firearms firearms)
         {
+            var pwa = firearms.ProceduralWeaponAnimation;
+            var isOptic = pwa.CurrentScope.IsOptic;
 			if (isOptic && DisableTransparencyInOptics.Value)
 			{
 				return;
@@ -453,7 +453,6 @@ namespace SevenBoldPencil.TransparentSights
             }
             else
             {
-    			var pwa = firearms.ProceduralWeaponAnimation;
     			var currentAimingMod = pwa.CurrentAimingMod;
     			if (currentAimingMod == null)
     			{
@@ -525,7 +524,7 @@ namespace SevenBoldPencil.TransparentSights
         {
             if (CurrentAiming.Some(out var currentAiming))
             {
-                OnAimingEnabled(currentAiming.Player, currentAiming.Firearms, currentAiming.IsOptic);
+                OnAimingEnabled(currentAiming.Player, currentAiming.Firearms);
             }
         }
 
@@ -533,7 +532,7 @@ namespace SevenBoldPencil.TransparentSights
         {
             if (CurrentAiming.Some(out var currentAiming))
             {
-                OnAimingEnabled(currentAiming.Player, currentAiming.Firearms, currentAiming.IsOptic);
+                OnAimingEnabled(currentAiming.Player, currentAiming.Firearms);
             }
         }
 
