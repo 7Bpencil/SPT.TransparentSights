@@ -461,6 +461,9 @@ namespace SevenBoldPencil.TransparentSights
     			var scopeTemplateId = currentAimingMod.Item.StringTemplateId;
     			var scopeTransform = pwa.CurrentScope.Bone.transform.parent;
                 var scopeTransparencyMode = GetScopeTransparencyMode(scopeTemplateId);
+
+                LogInfo("Sight:", scopeTemplateId, scopeTransparencyMode);
+
                 switch (scopeTransparencyMode)
                 {
             		case ScopeTransparencyMode.Disabled:
@@ -642,7 +645,7 @@ namespace SevenBoldPencil.TransparentSights
                 return default;
             }
 
-            LogInfo("patch renderer: ", renderer.name);
+            LogInfo("patch renderer:", renderer.name);
 
             var newMaterials = new Material[oldMaterials.Length];
             for (var i = 0; i < oldMaterials.Length; i++)
@@ -720,7 +723,7 @@ namespace SevenBoldPencil.TransparentSights
 
             TryPatchMod(assetPoolObject);
 
-			LogInfo("OnSetupMod: ", assetPoolObject.name);
+			LogInfo("OnSetupMod:", assetPoolObject.name);
         }
 
         public void OnRemoveMod(WeaponPrefab weaponPrefab, AssetPoolObject assetPoolObject)
@@ -745,7 +748,7 @@ namespace SevenBoldPencil.TransparentSights
                 // TODO not sure about bullets in magazines
             }
 
-			LogInfo("OnRemoveMod: ", assetPoolObject.name);
+			LogInfo("OnRemoveMod:", assetPoolObject.name);
         }
 
         public void SetRoundIntoWeapon(Firearms firearms, int chamberNumber)
@@ -786,7 +789,7 @@ namespace SevenBoldPencil.TransparentSights
             if (PatchedItems.Remove(instanceID, out var patchedItem))
             {
                 CleanPatchedRenderers(patchedItem.PatchedRenderers);
-    			LogInfo("OnPatchedItemDestroyed: ", instanceID);
+    			LogInfo("OnPatchedItemDestroyed:", instanceID);
             }
         }
 
