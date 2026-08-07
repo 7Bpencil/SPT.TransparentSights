@@ -126,8 +126,8 @@ namespace SevenBoldPencil.TransparentSights
             DOF_foregroundOverlap = Config.Bind<float>("Depth of Field", "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
             DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 15)));
 
-            MakeEntireWeaponTransparent.SettingChanged += (_, _) => Change_MakeEntireWeaponTransparent();
-            DisableTransparencyInOptics.SettingChanged += (_, _) => Change_MakeOpticsHousingTransparent();
+            MakeEntireWeaponTransparent.SettingChanged += (_, _) => Change_TransparencySettings();
+            DisableTransparencyInOptics.SettingChanged += (_, _) => Change_TransparencySettings();
             DOF_enabled.SettingChanged += (_, _) => Change_DOF_Enabled();
             DOF_blurSampleCount.SettingChanged += (_, _) => Change_DOF_Settings();
             DOF_aperture.SettingChanged += (_, _) => Change_DOF_Settings();
@@ -520,15 +520,7 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void Change_MakeEntireWeaponTransparent()
-        {
-            if (CurrentAiming.Some(out var currentAiming))
-            {
-                OnAimingEnabled(currentAiming.Player, currentAiming.Firearms);
-            }
-        }
-
-        public void Change_MakeOpticsHousingTransparent()
+        public void Change_TransparencySettings()
         {
             if (CurrentAiming.Some(out var currentAiming))
             {
@@ -541,6 +533,7 @@ namespace SevenBoldPencil.TransparentSights
             if (CurrentPatchedScope.Some(out var currentPatchedScope))
             {
                 LogInfo("OnAimingDisabled");
+
                 foreach (var tranparentItem in CurrentTransparentItems)
                 {
                     ForPatchedItem(tranparentItem, SetOriginalMaterials);
