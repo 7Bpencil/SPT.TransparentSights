@@ -266,6 +266,7 @@ namespace SevenBoldPencil.TransparentSights
         		ScopeTransparencyMode.Disabled => ScopeTransparencyMode.Enabled,
         		ScopeTransparencyMode.Enabled => ScopeTransparencyMode.EnabledWithMount,
         		ScopeTransparencyMode.EnabledWithMount => ScopeTransparencyMode.Disabled,
+                _ => throw new ArgumentException($"Unknown ScopeTransparencyMode: {value}"),
             };
         }
 
@@ -276,7 +277,8 @@ namespace SevenBoldPencil.TransparentSights
         		ScopeTransparencyMode.Disabled => "TRANSP. OFF",
         		ScopeTransparencyMode.Enabled => "TRANSP. ON",
         		ScopeTransparencyMode.EnabledWithMount => "TRANSP. ON + MOUNT",
-            }
+                _ => throw new ArgumentException($"Unknown ScopeTransparencyMode: {value}"),
+            };
 		}
 
         public ScopeTransparencyMode GetScopeTransparencyMode(string scopeTemplateId)
