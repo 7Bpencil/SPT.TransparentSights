@@ -224,6 +224,7 @@ namespace SevenBoldPencil.TransparentSights
                 { "5b3116595acfc40019476364", ScopeTransparencyMode.EnabledWithMount },
                 { "58d399e486f77442e0016fe7", ScopeTransparencyMode.EnabledWithMount },
                 { "61657230d92c473c770213d7", ScopeTransparencyMode.EnabledWithMount },
+                { "609bab8b455afd752b2e6138", ScopeTransparencyMode.Disabled },
             };
         }
 
