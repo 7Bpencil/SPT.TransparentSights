@@ -98,6 +98,7 @@ namespace SevenBoldPencil.TransparentSights
         public static ConfigEntry<float> DOF_focalSize;
         public static ConfigEntry<float> DOF_foregroundOverlap;
         public static ConfigEntry<float> DOF_maxBlurSize;
+        public static ConfigEntry<float> DOF_maxBlurSize_optic;
 
 		public ManualLogSource LoggerInstance;
 
@@ -124,7 +125,8 @@ namespace SevenBoldPencil.TransparentSights
             DOF_focalLength = Config.Bind<float>("Depth of Field", "Focal Length", 1.53f, new ConfigDescription("", new AcceptableValueRange<float>(0, 100)));
             DOF_focalSize = Config.Bind<float>("Depth of Field", "Focal Size", 0.61f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
             DOF_foregroundOverlap = Config.Bind<float>("Depth of Field", "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
-            DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 15)));
+            DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
+            DOF_maxBlurSize_optic = Config.Bind<float>("Depth of Field", "Max Blur Size Optic", 7.418873f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
 
             MakeEntireWeaponTransparent.SettingChanged += (_, _) => Change_TransparencySettings();
             DisableTransparencyInOptics.SettingChanged += (_, _) => Change_TransparencySettings();
@@ -135,6 +137,7 @@ namespace SevenBoldPencil.TransparentSights
             DOF_focalSize.SettingChanged += (_, _) => Change_DOF_Settings();
             DOF_foregroundOverlap.SettingChanged += (_, _) => Change_DOF_Settings();
             DOF_maxBlurSize.SettingChanged += (_, _) => Change_DOF_Settings();
+            DOF_maxBlurSize_optic.SettingChanged += (_, _) => Change_DOF_Settings();
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             SightShader = Shader.Find("Transparent/DepthZwriteDithered");
@@ -161,7 +164,8 @@ namespace SevenBoldPencil.TransparentSights
         {
             if (CurrentPatchedScope.Some(out var currentPatchedScope) && currentPatchedScope.DOFDataOption.Some(out var DOFData))
             {
-                Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
+                var isOptic = IsOptic(currentPatchedScope.Firearms);
+                Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config(isOptic));
             }
         }
 
@@ -169,9 +173,10 @@ namespace SevenBoldPencil.TransparentSights
         {
             if (CurrentPatchedScope.Some(out var currentPatchedScope) && currentPatchedScope.DOFDataOption.Some(out var DOFData))
             {
+                var isOptic = IsOptic(currentPatchedScope.Firearms);
                 if (DOF_enabled.Value)
                 {
-                    Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
+                    Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config(isOptic));
                 }
                 else
                 {
@@ -180,7 +185,7 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public SettingsDOF Get_DOF_Config()
+        public SettingsDOF Get_DOF_Config(bool isOptic)
         {
             return new SettingsDOF
             (
@@ -190,7 +195,7 @@ namespace SevenBoldPencil.TransparentSights
                 focalLength: DOF_focalLength.Value,
                 focalSize: DOF_focalSize.Value,
                 foregroundOverlap: DOF_foregroundOverlap.Value,
-                maxBlurSize: DOF_maxBlurSize.Value
+                maxBlurSize: isOptic ? DOF_maxBlurSize_optic.Value : DOF_maxBlurSize.Value
             );
         }
 
@@ -360,7 +365,8 @@ namespace SevenBoldPencil.TransparentSights
                 OnAimingDisabled();
             }
 
-            RebuildCurrentTransparentItems(player, firearms);
+            var isOptic = IsOptic(firearms);
+            RebuildCurrentTransparentItems(player, firearms, isOptic);
 
             if (CurrentTransparentItems.Count != 0)
             {
@@ -373,7 +379,7 @@ namespace SevenBoldPencil.TransparentSights
                 ));
                 if (DOF_enabled.Value && DOFDataOption.Some(out var DOFData))
                 {
-                    Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
+                    Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config(isOptic));
                 }
             }
 
@@ -410,10 +416,8 @@ namespace SevenBoldPencil.TransparentSights
         // weapon can change between OnAimingDisabled and OnAimingEnabled,
         // so we have to update a list of items that get transparent,
         // hopefully its not that expensive
-        public void RebuildCurrentTransparentItems(Player player, Firearms firearms)
+        public void RebuildCurrentTransparentItems(Player player, Firearms firearms, bool isOptic)
         {
-            var pwa = firearms.ProceduralWeaponAnimation;
-            var isOptic = pwa.CurrentScope.IsOptic;
 			if (isOptic && DisableTransparencyInOptics.Value)
 			{
 				return;
@@ -458,6 +462,7 @@ namespace SevenBoldPencil.TransparentSights
             }
             else
             {
+                var pwa = firearms.ProceduralWeaponAnimation;
     			var currentAimingMod = pwa.CurrentAimingMod;
     			if (currentAimingMod == null)
     			{
@@ -499,6 +504,11 @@ namespace SevenBoldPencil.TransparentSights
                     }
                 }
             }
+        }
+
+        public bool IsOptic(Firearms firearms)
+        {
+            return firearms.ProceduralWeaponAnimation.CurrentScope.IsOptic;
         }
 
         public void TryPatchMod(AssetPoolObject assetPoolObject)
