@@ -119,7 +119,7 @@ namespace SevenBoldPencil.TransparentSights
 
             var generalGroup = "General";
             MakeEntireWeaponTransparent = Config.Bind<bool>(generalGroup, "Make entire weapon transparent", false);
-            DisableTransparencyInOptics = Config.Bind<bool>(generalGroup, "Disable transparency in optics", true);
+            DisableTransparencyInOptics = Config.Bind<bool>(generalGroup, "Disable transparency in optics", false);
             DOF_enabled = Config.Bind<bool>(generalGroup, "Blur transparent sights", true);
 
             var dofGroup = "Depth of Field";
