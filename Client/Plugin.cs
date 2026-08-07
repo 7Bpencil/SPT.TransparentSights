@@ -91,7 +91,7 @@ namespace SevenBoldPencil.TransparentSights
         public static Plugin Instance;
 
         public static ConfigEntry<bool> MakeEntireWeaponTransparent;
-        public static ConfigEntry<bool> MakeOpticsHousingTransparent;
+        public static ConfigEntry<bool> DisableTransparencyInOptics;
         public static ConfigEntry<bool> DOF_enabled;
         public static ConfigEntry<BlurSampleCount> DOF_blurSampleCount;
         public static ConfigEntry<float> DOF_aperture;
@@ -118,7 +118,7 @@ namespace SevenBoldPencil.TransparentSights
 			LoggerInstance = Logger;
 
             MakeEntireWeaponTransparent = Config.Bind<bool>("General", "Make entire weapon transparent", false);
-            MakeOpticsHousingTransparent = Config.Bind<bool>("General", "Make optics housing transparent", false);
+            DisableTransparencyInOptics = Config.Bind<bool>("General", "Disable transparency in optics", true);
             DOF_enabled = Config.Bind<bool>("Depth of Field", "Enabled", true);
             DOF_blurSampleCount = Config.Bind<BlurSampleCount>("Depth of Field", "Blur Sample Count", BlurSampleCount.High);
             DOF_aperture = Config.Bind<float>("Depth of Field", "Aperture", 4, new ConfigDescription("", new AcceptableValueRange<float>(0, 50)));
@@ -128,7 +128,7 @@ namespace SevenBoldPencil.TransparentSights
             DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 15)));
 
             MakeEntireWeaponTransparent.SettingChanged += (_, _) => Change_MakeEntireWeaponTransparent();
-            MakeOpticsHousingTransparent.SettingChanged += (_, _) => Change_MakeOpticsHousingTransparent();
+            DisableTransparencyInOptics.SettingChanged += (_, _) => Change_MakeOpticsHousingTransparent();
             DOF_enabled.SettingChanged += (_, _) => Change_DOF_Enabled();
             DOF_blurSampleCount.SettingChanged += (_, _) => Change_DOF_Settings();
             DOF_aperture.SettingChanged += (_, _) => Change_DOF_Settings();
@@ -407,7 +407,7 @@ namespace SevenBoldPencil.TransparentSights
         // hopefully its not that expensive
         public void RebuildCurrentTransparentItems(Player player, Firearms firearms, bool isOptic)
         {
-			if (isOptic && !MakeOpticsHousingTransparent.Value)
+			if (isOptic && DisableTransparencyInOptics.Value)
 			{
 				return;
 			}
