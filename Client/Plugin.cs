@@ -418,6 +418,11 @@ namespace SevenBoldPencil.TransparentSights
             return default;
         }
 
+        public bool IsOptic(Firearms firearms)
+        {
+            return firearms.ProceduralWeaponAnimation.CurrentScope.IsOptic;
+        }
+
         // weapon can change between OnAimingDisabled and OnAimingEnabled,
         // so we have to update a list of items that get transparent,
         // hopefully its not that expensive
@@ -427,13 +432,12 @@ namespace SevenBoldPencil.TransparentSights
 			{
 				return;
 			}
+
+            var weaponPrefab = firearms.WeaponPrefab;
             if (MakeEntireWeaponTransparent.Value)
             {
-                {
-                    var hands = player.PlayerBody.BodySkins[EBodyModelPart.Hands];
-                    TryPatchItem(hands, PatchRenderers);
-                }
-                var weaponPrefab = firearms.WeaponPrefab;
+                var hands = player.PlayerBody.BodySkins[EBodyModelPart.Hands];
+                TryPatchItem(hands, PatchRenderers);
                 TryPatchItem(weaponPrefab, PatchRenderers);
                 if (weaponPrefab.ContainerCollectionView != null)
                 {
@@ -475,45 +479,135 @@ namespace SevenBoldPencil.TransparentSights
     				return;
     			}
 
-    			var scopeTemplateId = currentAimingMod.Item.StringTemplateId;
+                var scopeItem = currentAimingMod.Item;
+    			var scopeTemplateId = scopeItem.StringTemplateId;
     			var scopeTransform = pwa.CurrentScope.Bone.transform.parent;
                 var scopeTransparencyMode = GetScopeTransparencyMode(scopeTemplateId);
 
                 LogInfo("Sight:", scopeTemplateId, scopeTransparencyMode);
 
-                switch (scopeTransparencyMode)
+                if (scopeTransparencyMode == ScopeTransparencyMode.Enabled)
                 {
-            		case ScopeTransparencyMode.Disabled:
+                    if (scopeTransform.TryGetComponent<AssetPoolObject>(out var scopeVisual))
                     {
-                        break;
+                        TryPatchCompoundItem(scopeItem, scopeVisual, weaponPrefab);
                     }
-            		case ScopeTransparencyMode.Enabled:
+                }
+                if (scopeTransparencyMode == ScopeTransparencyMode.EnabledWithMount)
+                {
+                    if (TryGetScopeMount(scopeItem, weaponPrefab).Some(out var mountData))
                     {
-                        if (FindScope(scopeTransform).Some(out var scope))
-                        {
-                            TryPatchItem(scope, PatchRenderers);
-                        }
-                        break;
+                        var (mountItem, mountVisual) = mountData;
+                        TryPatchCompoundItem(mountItem, mountVisual, weaponPrefab);
                     }
-            		case ScopeTransparencyMode.EnabledWithMount:
+                    else if (scopeTransform.TryGetComponent<AssetPoolObject>(out var scopeVisual))
                     {
-                        if (FindScope(scopeTransform).Some(out var scope))
-                        {
-                            TryPatchItem(scope, PatchRenderers);
-                        }
-                        if (FindParentAssetPoolObject(scopeTransform).Some(out var mount))
-                        {
-                            TryPatchItem(mount, PatchRenderers);
-                        }
-                        break;
+                        TryPatchCompoundItem(scopeItem, scopeVisual, weaponPrefab);
                     }
                 }
             }
         }
 
-        public bool IsOptic(Firearms firearms)
+        // we get scope mount Item from scope parent slot,
+        // then we get scope mount AssetPoolObject from WeaponPrefab
+        // by keying list of all slots by slot that contains mount itself,
+        // looks complicated, but most of the code is null checks (thanks BSG)
+        public Option<(Item, AssetPoolObject)> TryGetScopeMount(Item scope, WeaponPrefab weaponPrefab)
         {
-            return firearms.ProceduralWeaponAnimation.CurrentScope.IsOptic;
+            if (!GetParentSlot(scope).Some(out var mountScopeSlot))
+            {
+                return default;
+            }
+
+            var mountItem = mountScopeSlot.ParentItem;
+            if (mountItem == null)
+            {
+                return default;
+            }
+            if (!GetParentSlot(mountItem).Some(out var mountParentSlot))
+            {
+                return default;
+            }
+
+            var allWeaponContainers = weaponPrefab.ContainerCollectionView.ContainerBones;
+            if (!allWeaponContainers.TryGetValue(mountParentSlot, out var containerData))
+            {
+                return default;
+            }
+            if (containerData.Item == null)
+            {
+                return default;
+            }
+            if (!containerData.ItemView)
+            {
+                return default;
+            }
+            if (!containerData.ItemView.TryGetComponent<AssetPoolObject>(out var mountAssetPoolObject))
+            {
+                return default;
+            }
+
+            return new((mountItem, mountAssetPoolObject));
+        }
+
+        public Option<Slot> GetParentSlot(Item item)
+        {
+            var currentAddress = item.CurrentAddress;
+            if (currentAddress == null)
+            {
+                return default;
+            }
+            if (currentAddress is not SlotItemAddress slotAddress)
+            {
+                return default;
+            }
+
+            var parentSlot = slotAddress.Slot;
+            if (parentSlot == null)
+            {
+                return default;
+            }
+
+            return new(parentSlot);
+        }
+
+        // some scopes can have subitems, examples:
+        // - rubber eyecups on some optic scopes
+        // - iron sight attachment on acog
+        public void TryPatchCompoundItem(Item item, AssetPoolObject assetPoolObject, WeaponPrefab weaponPrefab)
+        {
+            TryPatchItem(assetPoolObject, PatchRenderers);
+
+            if (item is not CompoundItem compoundItem)
+            {
+                return;
+            }
+
+            var allWeaponContainers = weaponPrefab.ContainerCollectionView.ContainerBones;
+            foreach (var slot in compoundItem.Slots)
+            {
+                var containedItem = slot.ContainedItem;
+                if (containedItem == null)
+                {
+                    continue;
+                }
+                if (!allWeaponContainers.TryGetValue(slot, out var containerData))
+                {
+                    continue;
+                }
+                if (containerData.Item == null)
+                {
+                    continue;
+                }
+                if (!containerData.ItemView)
+                {
+                    continue;
+                }
+                if (containerData.ItemView.TryGetComponent<AssetPoolObject>(out var subItemAssetPoolObject))
+                {
+                    TryPatchCompoundItem(containedItem, subItemAssetPoolObject, weaponPrefab);
+                }
+            }
         }
 
         public void TryPatchMod(AssetPoolObject assetPoolObject)
@@ -568,36 +662,6 @@ namespace SevenBoldPencil.TransparentSights
             }
 
             CurrentAiming = default;
-        }
-
-        public Option<AssetPoolObject> FindScope(Transform scopeTransform)
-        {
-            if (scopeTransform.TryGetComponent<AssetPoolObject>(out var scope))
-            {
-                return new(scope);
-            }
-
-            return default;
-        }
-
-        public Option<AssetPoolObject> FindParentAssetPoolObject(Transform scopeTransform)
-        {
-            // TODO make it less expensive, item probably knows to which item its attached, right?
-            // its not as simple as .parent.parent...
-
-            const int maxDepth = 3;
-            var parentTranform = scopeTransform.parent;
-
-            for (var i = 0; i < maxDepth; i++)
-            {
-                if (parentTranform.TryGetComponent<AssetPoolObject>(out var mount))
-                {
-                    return new(mount);
-                }
-                parentTranform = parentTranform.parent;
-            }
-
-            return default;
         }
 
         public void TryPatchItem<T>(T item, Func<T, List<PatchedRenderer>> patcher) where T : MonoBehaviour
