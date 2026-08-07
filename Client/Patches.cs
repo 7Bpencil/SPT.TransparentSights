@@ -206,10 +206,7 @@ namespace SevenBoldPencil.TransparentSights
         [PatchPostfix]
         private static void Postfix(Firearms __instance, Slot slot, GameObject modObject)
 		{
-			if (modObject.TryGetComponent<AssetPoolObject>(out var assetPoolObject))
-			{
-				Plugin.Instance.OnSetupMod(__instance.WeaponPrefab, assetPoolObject);
-			}
+			Plugin.Instance.OnSetupMod(__instance, modObject);
 		}
 	}
 
@@ -223,13 +220,7 @@ namespace SevenBoldPencil.TransparentSights
         [PatchPrefix]
         private static void Prefix(Firearms __instance, Slot slot)
 		{
-			var viewForSlot = __instance.ContainerCollectionView.GetViewForSlot(slot);
-			var index = viewForSlot.Bone.childCount - 1;
-			var child = viewForSlot.Bone.GetChild(index);
-			if (child.TryGetComponent<AssetPoolObject>(out var assetPoolObject))
-			{
-				Plugin.Instance.OnRemoveMod(__instance.WeaponPrefab, assetPoolObject);
-			}
+			Plugin.Instance.OnRemoveMod(__instance, slot);
 		}
 	}
 

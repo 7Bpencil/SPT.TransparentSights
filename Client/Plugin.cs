@@ -785,7 +785,7 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void OnSetupMod(WeaponPrefab weaponPrefab, AssetPoolObject assetPoolObject)
+        public void OnSetupMod(Firearms firearms, GameObject modObject)
         {
             if (!MakeEntireWeaponTransparent.Value)
             {
@@ -795,7 +795,12 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return;
             }
-            if (currentPatchedScope.Firearms.WeaponPrefab != weaponPrefab)
+            if (firearms != currentPatchedScope.Firearms)
+            {
+                return;
+            }
+
+			if (!modObject.TryGetComponent<AssetPoolObject>(out var assetPoolObject))
             {
                 return;
             }
@@ -805,7 +810,7 @@ namespace SevenBoldPencil.TransparentSights
 			LogInfo("OnSetupMod:", assetPoolObject.name);
         }
 
-        public void OnRemoveMod(WeaponPrefab weaponPrefab, AssetPoolObject assetPoolObject)
+        public void OnRemoveMod(Firearms firearms, Slot slot)
         {
             if (!MakeEntireWeaponTransparent.Value)
             {
@@ -815,16 +820,25 @@ namespace SevenBoldPencil.TransparentSights
             {
                 return;
             }
-            if (currentPatchedScope.Firearms.WeaponPrefab != weaponPrefab)
+            if (firearms != currentPatchedScope.Firearms)
             {
                 return;
             }
 
+			var viewForSlot = firearms.ContainerCollectionView.GetViewForSlot(slot);
+			var index = viewForSlot.Bone.childCount - 1;
+			var child = viewForSlot.Bone.GetChild(index);
+
+			if (!child.TryGetComponent<AssetPoolObject>(out var assetPoolObject))
+			{
+                return;
+			}
+
             var instanceID = assetPoolObject.gameObject.GetInstanceID();
             if (CurrentTransparentItems.Remove(instanceID))
             {
-                ForPatchedItem(instanceID, SetOriginalMaterials);
                 // TODO not sure about bullets in magazines
+                ForPatchedItem(instanceID, SetOriginalMaterials);
             }
 
 			LogInfo("OnRemoveMod:", assetPoolObject.name);
