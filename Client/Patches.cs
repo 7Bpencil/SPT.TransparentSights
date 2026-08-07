@@ -9,6 +9,7 @@ using Diz.Skinning;
 using EFT;
 using EFT.Animations;
 using EFT.AssetsManager;
+using EFT.CameraControl;
 using EFT.InventoryLogic;
 using EFT.Visual;
 using EFT.UI;
@@ -33,9 +34,13 @@ namespace SevenBoldPencil.TransparentSights
 
         private static TypedFieldInfo<ProceduralWeaponAnimation, FirearmController> __firearmController = new("_firearmController");
         private static TypedFieldInfo<ProceduralWeaponAnimation, bool> __isAiming = new("_isAiming");
+		private static TypedFieldInfo<ProceduralWeaponAnimation, IFirearmAnimationDataRepresenter> __firearmAnimationData = new("_firearmAnimationData");
+		private static TypedFieldInfo<ProceduralWeaponAnimation, int> __pose = new("_pose");
 
         public FirearmController _firearmController { get { return __firearmController.Get(__instance); } set { __firearmController.Set(__instance, value); } }
         public bool _isAiming { get { return __isAiming.Get(__instance); } set { __isAiming.Set(__instance, value); } }
+        public IFirearmAnimationDataRepresenter _firearmAnimationData { get { return __firearmAnimationData.Get(__instance); } set { __firearmAnimationData.Set(__instance, value); } }
+        public int _pose { get { return __pose.Get(__instance); } set { __pose.Set(__instance, value); } }
     }
 
 	public struct MagazineInHandsVisualController_Proxy(MagazineInHandsVisualController instance)
@@ -95,9 +100,63 @@ namespace SevenBoldPencil.TransparentSights
 				return;
 			}
 
-			var isOptic = __instance.CurrentScope.IsOptic;
 			var firearms = firearmController.Firearms;
-			Plugin.Instance.OnAimingEnabled(player, firearms, isOptic);
+			Plugin.Instance.OnAimingEnabled(player, firearms);
+		}
+	}
+
+	public class Patch_Player_CalculateScaleValueByFov : ModulePatch
+	{
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(Player), nameof(Player.CalculateScaleValueByFov));
+        }
+
+        [PatchPrefix]
+        public static bool Prefix(ref float ____ribcageScaleCompensated)
+		{
+			____ribcageScaleCompensated = 1f;
+			return false;
+		}
+	}
+
+	public class Patch_PWA_OnAimOrPoseChanged_fov_fix : ModulePatch
+	{
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(ProceduralWeaponAnimation), nameof(ProceduralWeaponAnimation.OnAimOrPoseChanged));
+        }
+
+        [PatchPrefix]
+        public static bool Prefix(ProceduralWeaponAnimation __instance, bool forced = false)
+		{
+			var __instance__ = new ProceduralWeaponAnimation_Proxy(__instance);
+
+			__instance.UpdateTacticalReload();
+			__instance.UpdateCustomEffector();
+			if (__instance.FirstPersonPointOfView)
+			{
+				if (!__instance.Sprint && __instance.AimIndex < __instance.ScopeAimTransforms.Count)
+				{
+					if (__instance__._firearmAnimationData != null && !__instance__._firearmAnimationData.MouseLookControl)
+					{
+						float num = __instance.HeadBobbing;
+						CameraManager.Instance.SetFov(num, 1f, !__instance__._isAiming);
+					}
+				}
+				__instance.method_1();
+			}
+			__instance.Shootingg.Pose = __instance.Pose;
+			__instance.Shootingg.CurrentRecoilEffect.HandRotationRecoilEffect.Intensity = __instance.IntensityByAiming;
+			__instance.Breath.Intensity = __instance.IntensityByPoseLevel * __instance.IntensityByAiming;
+			__instance.UpdateSwayFactors();
+			__instance.Breath.IsAiming = __instance.IsAiming;
+			__instance.HandShakeEffector.IsAiming = __instance.IsAiming;
+			__instance.HandsContainer.HandsRotation.InputIntensity = (__instance.HandsContainer.HandsPosition.InputIntensity = __instance.IntensityByAiming * __instance.IntensityByAiming);
+			__instance.TurnAway.IsInPronePose = __instance__._pose == 0;
+			__instance.Walk.AdjustPose();
+
+			return false;
 		}
 	}
 

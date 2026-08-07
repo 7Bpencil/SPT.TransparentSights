@@ -29,19 +29,22 @@ using UnityStandardAssets.ImageEffects;
 using UnityEngine.Video;
 using BlurSampleCount = UnityStandardAssets.ImageEffects.DepthOfField.BlurSampleCount;
 
+// optics dof 7.418873
+
 namespace SevenBoldPencil.TransparentSights
 {
     public readonly record struct CurrentAiming
     (
         Player Player,
         Firearms Firearms,
-        bool IsOptic
+        SightType SightType
     );
 
     public readonly record struct CurrentPatchedScope
     (
         Player Player,
         Firearms Firearms,
+        SightType SightType,
         Option<DOFData> DOFDataOption
     );
 
@@ -81,6 +84,24 @@ namespace SevenBoldPencil.TransparentSights
 		EnabledWithMount,
 	}
 
+    public enum SightType
+    {
+        None,
+        IronSight,
+        CompactCollimator,
+        Collimator,
+        Optic,
+    }
+
+    public class SightTypeSettings
+    {
+        public ConfigEntry<bool> Transparency;
+        public ConfigEntry<bool> FullWeaponTransparency;
+        public ConfigEntry<bool> DOF_enabled;
+        public ConfigEntry<float> DOF_foregroundOverlap;
+        public ConfigEntry<float> DOF_maxBlurSize;
+    }
+
     [BepInPlugin("7Bpencil.TransparentSights", "7Bpencil.TransparentSights", "0.1.1")]
     public class Plugin : BaseUnityPlugin
     {
@@ -90,15 +111,11 @@ namespace SevenBoldPencil.TransparentSights
 
         public static Plugin Instance;
 
-        public static ConfigEntry<bool> MakeEntireWeaponTransparent;
-        public static ConfigEntry<bool> MakeOpticsHousingTransparent;
-        public static ConfigEntry<bool> DOF_enabled;
-        public static ConfigEntry<BlurSampleCount> DOF_blurSampleCount;
-        public static ConfigEntry<float> DOF_aperture;
-        public static ConfigEntry<float> DOF_focalLength;
-        public static ConfigEntry<float> DOF_focalSize;
-        public static ConfigEntry<float> DOF_foregroundOverlap;
-        public static ConfigEntry<float> DOF_maxBlurSize;
+        public Dictionary<SightType, SightTypeSettings> SightsSettings;
+        public ConfigEntry<BlurSampleCount> DOF_quality;
+        public ConfigEntry<float> DOF_aperture;
+        public ConfigEntry<float> DOF_focalLength;
+        public ConfigEntry<float> DOF_focalSize;
 
 		public ManualLogSource LoggerInstance;
 
@@ -117,25 +134,39 @@ namespace SevenBoldPencil.TransparentSights
             Instance = this;
 			LoggerInstance = Logger;
 
-            MakeEntireWeaponTransparent = Config.Bind<bool>("General", "Make entire weapon transparent", false);
-            MakeOpticsHousingTransparent = Config.Bind<bool>("General", "Make optics housing transparent", false);
-            DOF_enabled = Config.Bind<bool>("Depth of Field", "Enabled", true);
-            DOF_blurSampleCount = Config.Bind<BlurSampleCount>("Depth of Field", "Blur Sample Count", BlurSampleCount.High);
+            SightsSettings = new();
+            SightType[] sightTypes = [SightType.None, SightType.IronSight, SightType.CompactCollimator, SightType.Collimator, SightType.Optic];
+            foreach (var sightType in sightTypes)
+            {
+                // TODO get default settings for each sight type
+                var sightTypeName = $"Sight settings: {GetSightTypeName(sightType)}";
+                var settings = new SightTypeSettings()
+                {
+                    Transparency = Config.Bind<bool>(sightTypeName, "Transparency", true),
+                    FullWeaponTransparency = Config.Bind<bool>(sightTypeName, "Full weapon transparency", false),
+                    DOF_enabled = Config.Bind<bool>(sightTypeName, "DOF", true),
+                    DOF_foregroundOverlap = Config.Bind<float>(sightTypeName, "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10))),
+                    DOF_maxBlurSize = Config.Bind<float>(sightTypeName, "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10))),
+                };
+
+                settings.Transparency.SettingChanged += (_, _) => Change_TransparencySettings();
+                settings.FullWeaponTransparency.SettingChanged += (_, _) => Change_TransparencySettings();
+                settings.DOF_enabled.SettingChanged += (_, _) => Change_DOF_Enabled();
+                settings.DOF_foregroundOverlap.SettingChanged += (_, _) => Change_DOF_Settings();
+                settings.DOF_maxBlurSize.SettingChanged += (_, _) => Change_DOF_Settings();
+
+                SightsSettings[sightType] = settings;
+            }
+
+            DOF_quality = Config.Bind<BlurSampleCount>("Depth of Field", "Blur Quality", BlurSampleCount.High);
             DOF_aperture = Config.Bind<float>("Depth of Field", "Aperture", 4, new ConfigDescription("", new AcceptableValueRange<float>(0, 50)));
             DOF_focalLength = Config.Bind<float>("Depth of Field", "Focal Length", 1.53f, new ConfigDescription("", new AcceptableValueRange<float>(0, 100)));
             DOF_focalSize = Config.Bind<float>("Depth of Field", "Focal Size", 0.61f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
-            DOF_foregroundOverlap = Config.Bind<float>("Depth of Field", "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
-            DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 15)));
 
-            MakeEntireWeaponTransparent.SettingChanged += (_, _) => Change_MakeEntireWeaponTransparent();
-            MakeOpticsHousingTransparent.SettingChanged += (_, _) => Change_MakeOpticsHousingTransparent();
-            DOF_enabled.SettingChanged += (_, _) => Change_DOF_Enabled();
-            DOF_blurSampleCount.SettingChanged += (_, _) => Change_DOF_Settings();
+            DOF_quality.SettingChanged += (_, _) => Change_DOF_Settings();
             DOF_aperture.SettingChanged += (_, _) => Change_DOF_Settings();
             DOF_focalLength.SettingChanged += (_, _) => Change_DOF_Settings();
             DOF_focalSize.SettingChanged += (_, _) => Change_DOF_Settings();
-            DOF_foregroundOverlap.SettingChanged += (_, _) => Change_DOF_Settings();
-            DOF_maxBlurSize.SettingChanged += (_, _) => Change_DOF_Settings();
 
             var assemblyDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             SightShader = Shader.Find("Transparent/DepthZwriteDithered");
@@ -153,6 +184,8 @@ namespace SevenBoldPencil.TransparentSights
             new Patch_Firearms_SetupMod().Enable();
             new Patch_Firearms_RemoveMod().Enable();
             new Patch_Firearms_SetRoundIntoWeapon().Enable();
+            new Patch_PWA_OnAimOrPoseChanged_fov_fix().Enable();
+            new Patch_Player_CalculateScaleValueByFov().Enable();
 #if DEBUG
             new Patch_FirearmController_Idling_DisableAimingOnReload().Enable();
 #endif
@@ -162,7 +195,8 @@ namespace SevenBoldPencil.TransparentSights
         {
             if (CurrentPatchedScope.Some(out var currentPatchedScope) && currentPatchedScope.DOFDataOption.Some(out var DOFData))
             {
-                Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
+                var sightSettings = SightsSettings[currentPatchedScope.SightType];
+                Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config(sightSettings));
             }
         }
 
@@ -170,9 +204,10 @@ namespace SevenBoldPencil.TransparentSights
         {
             if (CurrentPatchedScope.Some(out var currentPatchedScope) && currentPatchedScope.DOFDataOption.Some(out var DOFData))
             {
-                if (DOF_enabled.Value)
+                var sightSettings = SightsSettings[currentPatchedScope.SightType];
+                if (sightSettings.DOF_enabled.Value)
                 {
-                    Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
+                    Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config(sightSettings));
                 }
                 else
                 {
@@ -181,17 +216,17 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public SettingsDOF Get_DOF_Config()
+        public SettingsDOF Get_DOF_Config(SightTypeSettings sightSettings)
         {
             return new SettingsDOF
             (
-                enabled: DOF_enabled.Value,
-                blurSampleCount: DOF_blurSampleCount.Value,
+                enabled: sightSettings.DOF_enabled.Value,
+                blurSampleCount: DOF_quality.Value,
                 aperture: DOF_aperture.Value,
                 focalLength: DOF_focalLength.Value,
                 focalSize: DOF_focalSize.Value,
-                foregroundOverlap: DOF_foregroundOverlap.Value,
-                maxBlurSize: DOF_maxBlurSize.Value
+                foregroundOverlap: sightSettings.DOF_foregroundOverlap.Value,
+                maxBlurSize: sightSettings.DOF_maxBlurSize.Value
             );
         }
 
@@ -266,6 +301,7 @@ namespace SevenBoldPencil.TransparentSights
         		ScopeTransparencyMode.Disabled => ScopeTransparencyMode.Enabled,
         		ScopeTransparencyMode.Enabled => ScopeTransparencyMode.EnabledWithMount,
         		ScopeTransparencyMode.EnabledWithMount => ScopeTransparencyMode.Disabled,
+                _ => throw new ArgumentException($"Unknown ScopeTransparencyMode: {value}"),
             };
         }
 
@@ -276,8 +312,22 @@ namespace SevenBoldPencil.TransparentSights
         		ScopeTransparencyMode.Disabled => "TRANSP. OFF",
         		ScopeTransparencyMode.Enabled => "TRANSP. ON",
         		ScopeTransparencyMode.EnabledWithMount => "TRANSP. ON + MOUNT",
-            }
+                _ => throw new ArgumentException($"Unknown ScopeTransparencyMode: {value}"),
+            };
 		}
+
+        private string GetSightTypeName(SightType value)
+        {
+            return value switch
+            {
+                SightType.None => "None (UZI, PPSH, etc)",
+                SightType.IronSight => "Iron Sights",
+                SightType.CompactCollimator => "Small Collimators",
+                SightType.Collimator => "Collimators",
+                SightType.Optic => "Optics",
+                _ => throw new ArgumentException($"Unknown SightType: {value}"),
+            };
+        }
 
         public ScopeTransparencyMode GetScopeTransparencyMode(string scopeTemplateId)
         {
@@ -345,16 +395,25 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void OnAimingEnabled(Player player, Firearms firearms, bool isOptic)
+        public void OnAimingEnabled(Player player, Firearms firearms)
         {
             LogInfo("OnAimingEnabled");
-
+#if DEBUG
+            // infinite hands and legs stamina for testing
+            player.Physical.Stamina.Multiplier = 0;
+            player.Physical.HandsStamina.Multiplier = 0;
+#endif
             if (CurrentPatchedScope.HasValue)
             {
                 OnAimingDisabled();
             }
 
-            RebuildCurrentTransparentItems(player, firearms, isOptic);
+            var sightType = GetSightType(firearms);
+            var sightSettings = SightsSettings[sightType];
+
+            LogInfo("Sight Type:", sightType);
+
+            RebuildCurrentTransparentItems(player, firearms, sightSettings.Transparency.Value, sightSettings.FullWeaponTransparency.Value);
 
             if (CurrentTransparentItems.Count != 0)
             {
@@ -363,11 +422,12 @@ namespace SevenBoldPencil.TransparentSights
                 (
                     Player: player,
                     Firearms: firearms,
+                    SightType: sightType,
                     DOFDataOption: DOFDataOption
                 ));
-                if (DOF_enabled.Value && DOFDataOption.Some(out var DOFData))
+                if (sightSettings.DOF_enabled.Value && DOFDataOption.Some(out var DOFData))
                 {
-                    Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config());
+                    Set_DOF_Settings_Config(DOFData.DOF, Get_DOF_Config(sightSettings));
                 }
             }
 
@@ -375,7 +435,7 @@ namespace SevenBoldPencil.TransparentSights
             (
                 Player: player,
                 Firearms: firearms,
-                IsOptic: isOptic
+                SightType: sightType
             ));
         }
 
@@ -402,16 +462,42 @@ namespace SevenBoldPencil.TransparentSights
             return default;
         }
 
+        public static SightType GetSightType(Firearms firearms)
+        {
+			var pwa = firearms.ProceduralWeaponAnimation;
+            if (pwa.CurrentScope.IsOptic)
+            {
+                return SightType.Optic;
+            }
+
+			var currentAimingMod = pwa.CurrentAimingMod;
+			if (currentAimingMod == null)
+            {
+                return SightType.None;
+            }
+
+            return currentAimingMod.AdjustableOpticData switch
+            {
+                IronSightTemplate => SightType.IronSight,
+                CompactCollimatorTemplate => SightType.CompactCollimator,
+                CollimatorTemplate => SightType.Collimator,
+                AssaultScopeTemplate => SightType.IronSight, // because of elcan backup ironsights
+                OpticScopeTemplate => SightType.IronSight, // not sure but it would probably be backup ironsights
+                SpecialScopeTemplate => SightType.Collimator, // most thermal and night scopes are optics, except small one, I doubt people want to keep it transparent so whatever
+                _ => throw new ArgumentException($"Unknown sight type: {currentAimingMod.AdjustableOpticData.GetType().FullName}"),
+            };
+        }
+
         // weapon can change between OnAimingDisabled and OnAimingEnabled,
         // so we have to update a list of items that get transparent,
         // hopefully its not that expensive
-        public void RebuildCurrentTransparentItems(Player player, Firearms firearms, bool isOptic)
+        public void RebuildCurrentTransparentItems(Player player, Firearms firearms, bool enableTransparency, bool makeEntireWeaponTransparent)
         {
-			if (isOptic && !MakeOpticsHousingTransparent.Value)
-			{
-				return;
-			}
-            if (MakeEntireWeaponTransparent.Value)
+            if (!enableTransparency)
+            {
+                return;
+            }
+            if (makeEntireWeaponTransparent)
             {
                 {
                     var hands = player.PlayerBody.BodySkins[EBodyModelPart.Hands];
@@ -519,19 +605,11 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
-        public void Change_MakeEntireWeaponTransparent()
+        public void Change_TransparencySettings()
         {
             if (CurrentAiming.Some(out var currentAiming))
             {
-                OnAimingEnabled(currentAiming.Player, currentAiming.Firearms, currentAiming.IsOptic);
-            }
-        }
-
-        public void Change_MakeOpticsHousingTransparent()
-        {
-            if (CurrentAiming.Some(out var currentAiming))
-            {
-                OnAimingEnabled(currentAiming.Player, currentAiming.Firearms, currentAiming.IsOptic);
+                OnAimingEnabled(currentAiming.Player, currentAiming.Firearms);
             }
         }
 
@@ -707,17 +785,23 @@ namespace SevenBoldPencil.TransparentSights
             }
         }
 
+        public bool IsFullWeaponTransparencyEnabled(SightType sightType)
+        {
+            var sightSettings = SightsSettings[sightType];
+            return sightSettings.Transparency.Value && sightSettings.FullWeaponTransparency.Value;
+        }
+
         public void OnSetupMod(WeaponPrefab weaponPrefab, AssetPoolObject assetPoolObject)
         {
-            if (!MakeEntireWeaponTransparent.Value)
-            {
-                return;
-            }
             if (!CurrentPatchedScope.Some(out var currentPatchedScope))
             {
                 return;
             }
             if (currentPatchedScope.Firearms.WeaponPrefab != weaponPrefab)
+            {
+                return;
+            }
+            if (!IsFullWeaponTransparencyEnabled(currentPatchedScope.SightType))
             {
                 return;
             }
@@ -729,15 +813,15 @@ namespace SevenBoldPencil.TransparentSights
 
         public void OnRemoveMod(WeaponPrefab weaponPrefab, AssetPoolObject assetPoolObject)
         {
-            if (!MakeEntireWeaponTransparent.Value)
-            {
-                return;
-            }
             if (!CurrentPatchedScope.Some(out var currentPatchedScope))
             {
                 return;
             }
             if (currentPatchedScope.Firearms.WeaponPrefab != weaponPrefab)
+            {
+                return;
+            }
+            if (!IsFullWeaponTransparencyEnabled(currentPatchedScope.SightType))
             {
                 return;
             }
@@ -754,15 +838,15 @@ namespace SevenBoldPencil.TransparentSights
 
         public void SetRoundIntoWeapon(Firearms firearms, int chamberNumber)
         {
-            if (!MakeEntireWeaponTransparent.Value)
-            {
-                return;
-            }
             if (!CurrentPatchedScope.Some(out var currentPatchedScope))
             {
                 return;
             }
             if (currentPatchedScope.Firearms != firearms)
+            {
+                return;
+            }
+            if (!IsFullWeaponTransparencyEnabled(currentPatchedScope.SightType))
             {
                 return;
             }
