@@ -80,7 +80,7 @@ namespace SevenBoldPencil.TransparentSights
 		EnabledWithMount,
 	}
 
-    [BepInPlugin("7Bpencil.TransparentSights", "7Bpencil.TransparentSights", "0.2.0")]
+    [BepInPlugin("7Bpencil.TransparentSights", "7Bpencil.TransparentSights", "0.2.1")]
     public class Plugin : BaseUnityPlugin
     {
         public static readonly int _Cull = Shader.PropertyToID("_Cull");
