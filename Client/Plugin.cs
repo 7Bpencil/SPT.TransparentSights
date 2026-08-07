@@ -117,16 +117,21 @@ namespace SevenBoldPencil.TransparentSights
             Instance = this;
 			LoggerInstance = Logger;
 
-            MakeEntireWeaponTransparent = Config.Bind<bool>("General", "Make entire weapon transparent", false);
-            DisableTransparencyInOptics = Config.Bind<bool>("General", "Disable transparency in optics", true);
-            DOF_enabled = Config.Bind<bool>("Depth of Field", "Enabled", true);
-            DOF_blurSampleCount = Config.Bind<BlurSampleCount>("Depth of Field", "Blur Sample Count", BlurSampleCount.High);
-            DOF_aperture = Config.Bind<float>("Depth of Field", "Aperture", 4, new ConfigDescription("", new AcceptableValueRange<float>(0, 50)));
-            DOF_focalLength = Config.Bind<float>("Depth of Field", "Focal Length", 1.53f, new ConfigDescription("", new AcceptableValueRange<float>(0, 100)));
-            DOF_focalSize = Config.Bind<float>("Depth of Field", "Focal Size", 0.61f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
-            DOF_foregroundOverlap = Config.Bind<float>("Depth of Field", "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
-            DOF_maxBlurSize = Config.Bind<float>("Depth of Field", "Max Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
-            DOF_maxBlurSize_optic = Config.Bind<float>("Depth of Field", "Max Blur Size Optic", 7.418873f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
+            var generalGroup = "General";
+            MakeEntireWeaponTransparent = Config.Bind<bool>(generalGroup, "Make entire weapon transparent", false);
+            DisableTransparencyInOptics = Config.Bind<bool>(generalGroup, "Disable transparency in optics", true);
+            DOF_enabled = Config.Bind<bool>(generalGroup, "Blur transparent sights", true);
+
+            var dofGroup = "Depth of Field";
+            DOF_maxBlurSize = Config.Bind<float>(dofGroup, "Blur Size", 0.94f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
+            DOF_maxBlurSize_optic = Config.Bind<float>(dofGroup, "Blur Size in Optic", 7.418873f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
+
+            var dofAdvancedGroup = "Depth of Field Advanced";
+            DOF_blurSampleCount = Config.Bind<BlurSampleCount>(dofAdvancedGroup, "Blur Quality", BlurSampleCount.High);
+            DOF_aperture = Config.Bind<float>(dofAdvancedGroup, "Aperture", 4, new ConfigDescription("", new AcceptableValueRange<float>(0, 50)));
+            DOF_focalLength = Config.Bind<float>(dofAdvancedGroup, "Focal Length", 1.53f, new ConfigDescription("", new AcceptableValueRange<float>(0, 100)));
+            DOF_focalSize = Config.Bind<float>(dofAdvancedGroup, "Focal Size", 0.61f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
+            DOF_foregroundOverlap = Config.Bind<float>(dofAdvancedGroup, "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
 
             MakeEntireWeaponTransparent.SettingChanged += (_, _) => Change_TransparencySettings();
             DisableTransparencyInOptics.SettingChanged += (_, _) => Change_TransparencySettings();
