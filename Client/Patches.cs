@@ -238,6 +238,23 @@ namespace SevenBoldPencil.TransparentSights
 		}
 	}
 
+    // if player keeps ADS on raid end, game will try to unADS
+    // on start of the next raid and hit nullref exception because cached
+    // components (Player and DOF) from previous raid don't exist anymore
+	public class Patch_BaseLocalGame_GameEnd : ModulePatch
+	{
+        protected override MethodBase GetTargetMethod()
+        {
+            return AccessTools.Method(typeof(BaseLocalGame<EftGamePlayerOwner>), nameof(BaseLocalGame<EftGamePlayerOwner>.GameEnd));
+        }
+
+        [PatchPrefix]
+		private static void Prefix()
+		{
+			Plugin.Instance.OnAimingDisabled();
+		}
+	}
+
 #if DEBUG
 	public class Patch_FirearmController_Idling_DisableAimingOnReload : ModulePatch
 	{

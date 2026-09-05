@@ -160,6 +160,7 @@ namespace SevenBoldPencil.TransparentSights
             new Patch_Firearms_SetupMod().Enable();
             new Patch_Firearms_RemoveMod().Enable();
             new Patch_Firearms_SetRoundIntoWeapon().Enable();
+            new Patch_BaseLocalGame_GameEnd().Enable();
 #if DEBUG
             new Patch_FirearmController_Idling_DisableAimingOnReload().Enable();
 #endif
