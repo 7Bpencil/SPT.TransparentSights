@@ -6,6 +6,7 @@
 //
 
 using BepInEx;
+using BepInEx.Unity.IL2CPP;
 using BepInEx.Configuration;
 using BepInEx.Logging;
 using EFT;
@@ -26,7 +27,6 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityStandardAssets.ImageEffects;
-using UnityEngine.Video;
 using BlurSampleCount = UnityStandardAssets.ImageEffects.DepthOfField.BlurSampleCount;
 
 namespace SevenBoldPencil.TransparentSights
@@ -81,7 +81,7 @@ namespace SevenBoldPencil.TransparentSights
 	}
 
     [BepInPlugin("7Bpencil.TransparentSights", "7Bpencil.TransparentSights", "0.2.2")]
-    public class Plugin : BaseUnityPlugin
+    public class Plugin : BasePlugin
     {
         public static readonly int _Cull = Shader.PropertyToID("_Cull");
 
@@ -112,10 +112,10 @@ namespace SevenBoldPencil.TransparentSights
         private Option<CurrentAiming> CurrentAiming;
         private Option<double> LastSaveTime;
 
-        private void Awake()
+		public override void Load()
         {
             Instance = this;
-			LoggerInstance = Logger;
+			LoggerInstance = Log;
 
             var generalGroup = "General";
             MakeEntireWeaponTransparent = Config.Bind<bool>(generalGroup, "Make entire weapon transparent", false);
@@ -155,8 +155,8 @@ namespace SevenBoldPencil.TransparentSights
             new Patch_PWA_OnAimOrPoseChanged().Enable();
             new Patch_AssetPoolObject_OnDestroy().Enable();
             new Patch_LoddedSkin_Unskin().Enable();
-            new Patch_ItemSpecificationPanel_Show().Enable();
-            new Patch_ItemSpecificationPanel_Close().Enable();
+            // new Patch_ItemSpecificationPanel_Show().Enable();
+            // new Patch_ItemSpecificationPanel_Close().Enable();
             new Patch_Firearms_SetupMod().Enable();
             new Patch_Firearms_RemoveMod().Enable();
             new Patch_Firearms_SetRoundIntoWeapon().Enable();
@@ -225,7 +225,7 @@ namespace SevenBoldPencil.TransparentSights
             }
             else
             {
-                Logger.LogError($"Failed to load transparent scopes, rolling back to default config: {e}");
+                Log.LogError($"Failed to load transparent scopes, rolling back to default config: {e}");
             }
 
             return new()
@@ -240,8 +240,8 @@ namespace SevenBoldPencil.TransparentSights
 
         public void SaveTransparentScopesToFile(string filePath, Dictionary<string, ScopeTransparencyMode> transparentScopes)
         {
-            var json = JsonConvert.SerializeObject(transparentScopes, Formatting.Indented);
-            SafeIO.WriteAllTextAsync(filePath, json);
+            // var json = JsonConvert.SerializeObject(transparentScopes, Formatting.Indented);
+            // SafeIO.WriteAllTextAsync(filePath, json);
         }
 
 #if DEBUG
@@ -531,7 +531,7 @@ namespace SevenBoldPencil.TransparentSights
             }
 
             var allWeaponContainers = weaponPrefab.ContainerCollectionView.ContainerBones;
-            if (!allWeaponContainers.TryGetValue(mountParentSlot, out var containerData))
+            if (!allWeaponContainers.TryGetValue(mountParentSlot.TryCast<IContainer>(), out var containerData))
             {
                 return default;
             }
@@ -592,7 +592,7 @@ namespace SevenBoldPencil.TransparentSights
                 {
                     continue;
                 }
-                if (!allWeaponContainers.TryGetValue(slot, out var containerData))
+                if (!allWeaponContainers.TryGetValue(slot.TryCast<IContainer>(), out var containerData))
                 {
                     continue;
                 }
@@ -617,7 +617,7 @@ namespace SevenBoldPencil.TransparentSights
 
             if (assetPoolObject is MagazineInHandsVisualController mag)
             {
-                var magazineInHandsVisual = new MagazineInHandsVisualController_Proxy(mag)._magazineInHandsVisual;
+                var magazineInHandsVisual = mag._magazineInHandsVisual;
                 if (magazineInHandsVisual is SpringMagazineVisual boxMagazine)
                 {
                     foreach (var bullet in boxMagazine._ammoPoolObjects)
@@ -826,7 +826,7 @@ namespace SevenBoldPencil.TransparentSights
                 return;
             }
 
-			var viewForSlot = firearms.ContainerCollectionView.GetViewForSlot(slot);
+			var viewForSlot = firearms.ContainerCollectionView.GetViewForSlot(slot.TryCast<IContainer>());
 			var index = viewForSlot.Bone.childCount - 1;
 			var child = viewForSlot.Bone.GetChild(index);
 
@@ -893,7 +893,7 @@ namespace SevenBoldPencil.TransparentSights
             {
                 foreach (var patched in patchedRenderer.Patched)
                 {
-                    Destroy(patched);
+                    GameObject.Destroy(patched);
                 }
             }
 
@@ -903,21 +903,21 @@ namespace SevenBoldPencil.TransparentSights
         public void LogInfo<A>(A a)
         {
 #if DEBUG
-			Logger.LogInfo(a);
+			Log.LogInfo(a);
 #endif
         }
 
         public void LogInfo<A, B>(A a, B b)
         {
 #if DEBUG
-			Logger.LogInfo($"{a} {b}");
+			Log.LogInfo($"{a} {b}");
 #endif
         }
 
         public void LogInfo<A, B, C>(A a, B b, C c)
         {
 #if DEBUG
-			Logger.LogInfo($"{a} {b} {c}");
+			Log.LogInfo($"{a} {b} {c}");
 #endif
         }
     }
