@@ -531,7 +531,7 @@ namespace SevenBoldPencil.TransparentSights
             }
 
             var allWeaponContainers = weaponPrefab.ContainerCollectionView.ContainerBones;
-            if (!allWeaponContainers.TryGetValue(mountParentSlot.TryCast<IContainer>(), out var containerData))
+            if (!allWeaponContainers.TryGetValue(mountParentSlot, out var containerData))
             {
                 return default;
             }
@@ -592,7 +592,7 @@ namespace SevenBoldPencil.TransparentSights
                 {
                     continue;
                 }
-                if (!allWeaponContainers.TryGetValue(slot.TryCast<IContainer>(), out var containerData))
+                if (!allWeaponContainers.TryGetValue(slot, out var containerData))
                 {
                     continue;
                 }
@@ -826,7 +826,7 @@ namespace SevenBoldPencil.TransparentSights
                 return;
             }
 
-			var viewForSlot = firearms.ContainerCollectionView.GetViewForSlot(slot.TryCast<IContainer>());
+			var viewForSlot = firearms.ContainerCollectionView.GetViewForSlot(slot);
 			var index = viewForSlot.Bone.childCount - 1;
 			var child = viewForSlot.Bone.GetChild(index);
 
