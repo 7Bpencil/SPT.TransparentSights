@@ -482,14 +482,14 @@ namespace SevenBoldPencil.TransparentSights
 
                 var scopeItem = currentAimingMod.Item;
     			var scopeTemplateId = scopeItem.StringTemplateId;
-    			var scopeTransform = pwa.CurrentScope.Bone.transform.parent;
+    			var scopePrefabCache = pwa.CurrentScope.ScopePrefabCache;
                 var scopeTransparencyMode = GetScopeTransparencyMode(scopeTemplateId);
 
                 LogInfo("Sight:", scopeTemplateId, scopeTransparencyMode);
 
                 if (scopeTransparencyMode == ScopeTransparencyMode.Enabled)
                 {
-                    if (scopeTransform.TryGetComponent<AssetPoolObject>(out var scopeVisual))
+                    if (scopePrefabCache.TryGetComponent<AssetPoolObject>(out var scopeVisual))
                     {
                         TryPatchCompoundItem(scopeItem, scopeVisual, weaponPrefab);
                     }
@@ -501,7 +501,7 @@ namespace SevenBoldPencil.TransparentSights
                         var (mountItem, mountVisual) = mountData;
                         TryPatchCompoundItem(mountItem, mountVisual, weaponPrefab);
                     }
-                    else if (scopeTransform.TryGetComponent<AssetPoolObject>(out var scopeVisual))
+                    else if (scopePrefabCache.TryGetComponent<AssetPoolObject>(out var scopeVisual))
                     {
                         TryPatchCompoundItem(scopeItem, scopeVisual, weaponPrefab);
                     }
