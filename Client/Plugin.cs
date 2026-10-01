@@ -759,6 +759,7 @@ namespace SevenBoldPencil.TransparentSights
                 shaderName == "p0/Reflective/Bumped Specular SMap" ||
                 shaderName == "p0/Reflective/Specular" ||
                 shaderName == "CW FX/BackLens" ||
+                shaderName == "Tarkov Custom/Specular/Lit/Opaque/Epic SMAP PBR_Icon" ||
                 shaderName == "Unlit/Color2";
         }
 
