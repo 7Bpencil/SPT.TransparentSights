@@ -90,7 +90,7 @@ namespace SevenBoldPencil.TransparentSights
         public static Plugin Instance;
 
         public static ConfigEntry<bool> MakeEntireWeaponTransparent;
-        public static ConfigEntry<bool> DisableTransparencyInOptics;
+        public static ConfigEntry<bool> MakeOpticHousingTransparent;
         public static ConfigEntry<bool> DOF_enabled;
         public static ConfigEntry<BlurSampleCount> DOF_blurSampleCount;
         public static ConfigEntry<float> DOF_aperture;
@@ -119,7 +119,7 @@ namespace SevenBoldPencil.TransparentSights
 
             var generalGroup = "General";
             MakeEntireWeaponTransparent = Config.Bind<bool>(generalGroup, "Make entire weapon transparent", false);
-            DisableTransparencyInOptics = Config.Bind<bool>(generalGroup, "Disable transparency in optics", false);
+            MakeOpticHousingTransparent = Config.Bind<bool>(generalGroup, "Make optic housing transparent", false);
             DOF_enabled = Config.Bind<bool>(generalGroup, "Blur transparent sights", true);
 
             var dofGroup = "Depth of Field";
@@ -134,7 +134,7 @@ namespace SevenBoldPencil.TransparentSights
             DOF_foregroundOverlap = Config.Bind<float>(dofAdvancedGroup, "Foreground Overlap", 2.63f, new ConfigDescription("", new AcceptableValueRange<float>(0, 10)));
 
             MakeEntireWeaponTransparent.SettingChanged += (_, _) => Change_TransparencySettings();
-            DisableTransparencyInOptics.SettingChanged += (_, _) => Change_TransparencySettings();
+            MakeOpticHousingTransparent.SettingChanged += (_, _) => Change_TransparencySettings();
             DOF_enabled.SettingChanged += (_, _) => Change_DOF_Enabled();
             DOF_blurSampleCount.SettingChanged += (_, _) => Change_DOF_Settings();
             DOF_aperture.SettingChanged += (_, _) => Change_DOF_Settings();
@@ -429,7 +429,7 @@ namespace SevenBoldPencil.TransparentSights
         // hopefully its not that expensive
         public void RebuildCurrentTransparentItems(Player player, Firearms firearms, bool isOptic)
         {
-			if (isOptic && DisableTransparencyInOptics.Value)
+			if (isOptic && !MakeOpticHousingTransparent.Value)
 			{
 				return;
 			}

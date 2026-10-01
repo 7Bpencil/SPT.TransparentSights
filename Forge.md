@@ -9,8 +9,8 @@
 
 1) How do I make entire weapon transparent?
     - Open F12 menu and enable `General/Make entire weapon transparent`
-2) I dislike transparent housings on optic scopes
-    - Open F12 menu and enable `General/Disable transparency in optics`
+2) I want optic scopes to have transparent housings as well
+    - Open F12 menu and enable `General/Make optic housing transparent`
 3) I dislike blur, how can I disable it?
     - Open F12 menu and disable `General/Blur transparent sights`
 4) I like blur, how can I make it more blurry?
