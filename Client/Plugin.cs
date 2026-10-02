@@ -482,14 +482,13 @@ namespace SevenBoldPencil.TransparentSights
 
                 var scopeItem = currentAimingMod.Item;
     			var scopeTemplateId = scopeItem.StringTemplateId;
-    			var scopePrefabCache = pwa.CurrentScope.ScopePrefabCache;
                 var scopeTransparencyMode = GetScopeTransparencyMode(scopeTemplateId);
 
                 LogInfo("Sight:", scopeTemplateId, scopeTransparencyMode);
 
                 if (scopeTransparencyMode == ScopeTransparencyMode.Enabled)
                 {
-                    if (scopePrefabCache.TryGetComponent<AssetPoolObject>(out var scopeVisual))
+                    if (TryGetScope(scopeItem, weaponPrefab).Some(out var scopeVisual))
                     {
                         TryPatchCompoundItem(scopeItem, scopeVisual, weaponPrefab);
                     }
@@ -501,12 +500,40 @@ namespace SevenBoldPencil.TransparentSights
                         var (mountItem, mountVisual) = mountData;
                         TryPatchCompoundItem(mountItem, mountVisual, weaponPrefab);
                     }
-                    else if (scopePrefabCache.TryGetComponent<AssetPoolObject>(out var scopeVisual))
+                    else if (TryGetScope(scopeItem, weaponPrefab).Some(out var scopeVisual))
                     {
                         TryPatchCompoundItem(scopeItem, scopeVisual, weaponPrefab);
                     }
                 }
             }
+        }
+
+        public static Option<AssetPoolObject> TryGetScope(Item scope, WeaponPrefab weaponPrefab)
+        {
+            if (!GetParentSlot(scope).Some(out var mountScopeSlot))
+            {
+                return default;
+            }
+
+            var allWeaponContainers = weaponPrefab.ContainerCollectionView.ContainerBones;
+            if (!allWeaponContainers.TryGetValue(mountScopeSlot, out var containerData))
+            {
+                return default;
+            }
+            if (containerData.Item == null)
+            {
+                return default;
+            }
+            if (!containerData.ItemView)
+            {
+                return default;
+            }
+            if (!containerData.ItemView.TryGetComponent<AssetPoolObject>(out var scopeAssetPoolObject))
+            {
+                return default;
+            }
+
+            return new(scopeAssetPoolObject);
         }
 
         // we get scope mount Item from scope parent slot,
@@ -551,7 +578,7 @@ namespace SevenBoldPencil.TransparentSights
             return new((mountItem, mountAssetPoolObject));
         }
 
-        public Option<Slot> GetParentSlot(Item item)
+        public static Option<Slot> GetParentSlot(Item item)
         {
             var currentAddress = item.CurrentAddress;
             if (currentAddress == null)
