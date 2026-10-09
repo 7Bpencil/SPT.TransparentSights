@@ -19,43 +19,15 @@ using System;
 using System.Reflection;
 using System.Threading;
 using System.Collections.Generic;
-using SPT.Reflection.Patching;
+using SPTushonka.Reflection.Patching;
 using TMPro;
 using HarmonyLib;
 using UnityEngine;
 using FirearmController = EFT.Player.FirearmController;
+using Il2CppInterop.Runtime;
 
 namespace SevenBoldPencil.TransparentSights
 {
-    public struct ProceduralWeaponAnimation_Proxy(ProceduralWeaponAnimation instance)
-    {
-        private readonly ProceduralWeaponAnimation __instance = instance;
-
-        private static TypedFieldInfo<ProceduralWeaponAnimation, FirearmController> __firearmController = new("_firearmController");
-        private static TypedFieldInfo<ProceduralWeaponAnimation, bool> __isAiming = new("_isAiming");
-
-        public FirearmController _firearmController { get { return __firearmController.Get(__instance); } set { __firearmController.Set(__instance, value); } }
-        public bool _isAiming { get { return __isAiming.Get(__instance); } set { __isAiming.Set(__instance, value); } }
-    }
-
-	public struct MagazineInHandsVisualController_Proxy(MagazineInHandsVisualController instance)
-	{
-        private readonly MagazineInHandsVisualController __instance = instance;
-
-		private static TypedFieldInfo<MagazineInHandsVisualController, MagazineInHandsVisual> __magazineInHandsVisual = new("_magazineInHandsVisual");
-
-		public MagazineInHandsVisual _magazineInHandsVisual { get { return __magazineInHandsVisual.Get(__instance); } set { __magazineInHandsVisual.Set(__instance, value); } }
-	}
-
-	public struct ItemSpecificationPanel_Proxy(ItemSpecificationPanel instance)
-	{
-        private readonly ItemSpecificationPanel __instance = instance;
-
-		private static TypedFieldInfo<ItemSpecificationPanel, Item> __item = new("_item");
-
-		public Item _item { get { return __item.Get(__instance); } set { __item.Set(__instance, value); } }
-	}
-
 	public class Patch_PWA_OnAimOrPoseChanged : ModulePatch
 	{
         protected override MethodBase GetTargetMethod()
@@ -71,8 +43,7 @@ namespace SevenBoldPencil.TransparentSights
 				return;
 			}
 
-			var __instance__ = new ProceduralWeaponAnimation_Proxy(__instance);
-			var firearmController = __instance__._firearmController;
+			var firearmController = __instance._firearmController;
 			if (!firearmController)
 			{
 				return;
@@ -89,7 +60,7 @@ namespace SevenBoldPencil.TransparentSights
 				return;
 			}
 
-			if (!__instance__._isAiming)
+			if (!__instance._isAiming)
 			{
 				Plugin.Instance.OnAimingDisabled();
 				return;
@@ -138,10 +109,11 @@ namespace SevenBoldPencil.TransparentSights
         }
 
         [PatchPostfix]
-        private static void Postfix(ItemSpecificationPanel __instance, InteractionButtonsContainer ____interactionButtonsContainer)
+        private static void Postfix(ItemSpecificationPanel __instance)
         {
-			var __instance__ = new ItemSpecificationPanel_Proxy(__instance);
-			var item = __instance__._item;
+			var ____interactionButtonsContainer = __instance._interactionButtonsContainer;
+
+			var item = __instance._item;
 			if (item == null)
 			{
 				return;
@@ -162,8 +134,9 @@ namespace SevenBoldPencil.TransparentSights
             var sprite = ResourcesCache.Pop<Sprite>("Characteristics/Icons/Modding");
 			var startName = Plugin.Instance.GetScopeTransparencyModeName(templateId);
             var toggleButton = (ContextMenuButton)UnityEngine.Object.Instantiate(____interactionButtonsContainer._buttonTemplate, ____interactionButtonsContainer._buttonsContainer, false);
+			var onClick = DelegateSupport.ConvertDelegate<Il2CppSystem.Action>(OnClick);
 
-            toggleButton.Show(startName, null, sprite, OnClick, null);
+            toggleButton.Show(startName, null, sprite, onClick, null);
             ____interactionButtonsContainer.BindButton(toggleButton);
 
 			Plugin.Instance.AddPanel(templateId, __instance, toggleButton);
@@ -180,8 +153,7 @@ namespace SevenBoldPencil.TransparentSights
         [PatchPrefix]
         private static void Prefix(ItemSpecificationPanel __instance)
         {
-			var __instance__ = new ItemSpecificationPanel_Proxy(__instance);
-			var item = __instance__._item;
+			var item = __instance._item;
 			if (item == null)
 			{
 				return;

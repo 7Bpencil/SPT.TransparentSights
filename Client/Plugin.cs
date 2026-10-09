@@ -8,6 +8,7 @@
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
+using BepInEx.Unity.IL2CPP;
 using EFT;
 using EFT.AssetsManager;
 using EFT.CameraControl;
@@ -15,7 +16,8 @@ using EFT.InventoryLogic;
 using EFT.Visual;
 using EFT.UI;
 using EFT.UI.WeaponModding;
-using Newtonsoft.Json;
+using Il2CppInterop.Runtime.Injection;
+using System.Text.Json;
 using SevenBoldPencil.Common;
 using System;
 using System.IO;
@@ -26,7 +28,6 @@ using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityStandardAssets.ImageEffects;
-using UnityEngine.Video;
 using BlurSampleCount = UnityStandardAssets.ImageEffects.DepthOfField.BlurSampleCount;
 
 namespace SevenBoldPencil.TransparentSights
@@ -80,8 +81,13 @@ namespace SevenBoldPencil.TransparentSights
 		EnabledWithMount,
 	}
 
+    public class Runner : MonoBehaviour
+    {
+        public void Update() => Plugin.Instance.Update();
+    }
+
     [BepInPlugin("7Bpencil.TransparentSights", "7Bpencil.TransparentSights", "0.2.3")]
-    public class Plugin : BaseUnityPlugin
+    public class Plugin : BasePlugin
     {
         public static readonly int _Cull = Shader.PropertyToID("_Cull");
 
@@ -100,7 +106,8 @@ namespace SevenBoldPencil.TransparentSights
         public static ConfigEntry<float> DOF_maxBlurSize;
         public static ConfigEntry<float> DOF_maxBlurSize_optic;
 
-		public ManualLogSource LoggerInstance;
+		public ManualLogSource Logger;
+        public Runner Runner;
 
         private string ConfigPath;
         private Shader SightShader;
@@ -112,10 +119,13 @@ namespace SevenBoldPencil.TransparentSights
         private Option<CurrentAiming> CurrentAiming;
         private Option<double> LastSaveTime;
 
-        private void Awake()
+        public override void Load()
         {
             Instance = this;
-			LoggerInstance = Logger;
+			Logger = Log;
+
+            ClassInjector.RegisterTypeInIl2Cpp<Runner>();
+            Runner = AddComponent<Runner>();
 
             var generalGroup = "General";
             MakeEntireWeaponTransparent = Config.Bind<bool>(generalGroup, "Make entire weapon transparent", false);
@@ -220,7 +230,7 @@ namespace SevenBoldPencil.TransparentSights
         {
             if (SafeIO.ReadAllText(filePath).Ok(out var json, out var e))
             {
-                var result = JsonConvert.DeserializeObject<Dictionary<string, ScopeTransparencyMode>>(json);
+                var result = JsonSerializer.Deserialize<Dictionary<string, ScopeTransparencyMode>>(json);
                 return result;
             }
             else
@@ -240,7 +250,7 @@ namespace SevenBoldPencil.TransparentSights
 
         public void SaveTransparentScopesToFile(string filePath, Dictionary<string, ScopeTransparencyMode> transparentScopes)
         {
-            var json = JsonConvert.SerializeObject(transparentScopes, Formatting.Indented);
+            var json = JsonSerializer.Serialize(transparentScopes);
             SafeIO.WriteAllTextAsync(filePath, json);
         }
 
@@ -644,7 +654,7 @@ namespace SevenBoldPencil.TransparentSights
 
             if (assetPoolObject is MagazineInHandsVisualController mag)
             {
-                var magazineInHandsVisual = new MagazineInHandsVisualController_Proxy(mag)._magazineInHandsVisual;
+                var magazineInHandsVisual = mag._magazineInHandsVisual;
                 if (magazineInHandsVisual is SpringMagazineVisual boxMagazine)
                 {
                     foreach (var bullet in boxMagazine._ammoPoolObjects)
@@ -921,7 +931,7 @@ namespace SevenBoldPencil.TransparentSights
             {
                 foreach (var patched in patchedRenderer.Patched)
                 {
-                    Destroy(patched);
+                    GameObject.Destroy(patched);
                 }
             }
 
